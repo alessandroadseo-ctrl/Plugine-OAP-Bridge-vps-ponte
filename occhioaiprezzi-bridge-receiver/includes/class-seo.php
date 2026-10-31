@@ -2,9 +2,7 @@
 defined('ABSPATH') || exit;
 final class OAP_SEO {
     public static function public_row(array $row): bool {
-        if ($row['owner'] !== 'oap-wp-1' || $row['state'] !== 'active') { return false; }
-        // Fail closed anche per import WooCommerce successivi che saltano gli hook WP.
-        return !OAP_Eligibility::present(new OAP_Storage(), $row['gtin'], OAP_Eligibility::keys());
+        return $row['owner'] === 'oap-wp-1' && $row['state'] === 'active';
     }
     public static function serve(): void {
         // An invalid bridge configuration must never turn unrelated WP pages into 503s.
@@ -24,6 +22,8 @@ final class OAP_SEO {
             $row = $db->page($claim['gtin']);
             if (!$row || $row['owner'] !== 'oap-wp-1') { return; }
             $bundle = OAP_Storage::read($row['artifact']);
+            // Historical claims reserve ownership, but only VPS-supplied aliases redirect.
+            if ($slug !== $row['slug'] && !in_array($slug, $bundle['redirects'], true)) { return; }
             $active = self::public_row($row);
             $gone = !$active && $row['state'] === 'inactive' && $bundle['removal_policy'] === 'gone';
             // Tombstone risolto direttamente su qualunque alias: niente catene.
@@ -42,17 +42,15 @@ final class OAP_SEO {
             // nessuna duplicazione di canonical o schema da tema/plugin SEO.
             $seo = $bundle['seo'];
             echo '<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">';
-            echo '<title>' . esc_html($active ? $seo['title'] : 'Prodotto non disponibile') . '</title>';
+            echo '<title>' . esc_html($seo['title']) . '</title>';
             echo '<meta name="robots" content="' . ($indexable ? 'index,follow' : 'noindex,nofollow') . '">';
-            if ($active) {
-                echo '<meta name="description" content="' . esc_attr($seo['description'] ?? '') . '">';
-                echo '<link rel="canonical" href="' . esc_url(OAP_Support::canonical($row['slug'])) . '">';
-                if (OAP_Support::cfg('OAP_BRIDGE_JSONLD_ENABLED', false) === true && !empty($seo['jsonld'])) {
-                    echo '<script type="application/ld+json">' . OAP_Support::json($seo['jsonld']) . '</script>';
-                }
+            echo '<meta name="description" content="' . esc_attr($seo['description'] ?? '') . '">';
+            echo '<link rel="canonical" href="' . esc_url($seo['canonical']) . '">';
+            if (!empty($seo['jsonld'])) {
+                echo '<script type="application/ld+json">' . OAP_Support::json($seo['jsonld']) . '</script>';
             }
             echo '<link rel="stylesheet" href="' . esc_url(plugins_url('../assets/oap-1.css', __FILE__)) . '"></head><body><main>';
-            echo $active ? $bundle['html'] : '<h1>Prodotto non disponibile</h1><p>Al momento non sono disponibili offerte.</p>';
+            echo $bundle['html'];
             echo '</main></body></html>'; exit;
         } catch (OAP_Failure $e) {
             // Malformed/unrecognized public paths stay in WP's normal 404 handling.
@@ -61,3 +59,4 @@ final class OAP_SEO {
         } catch (Throwable $e) { status_header(503); nocache_headers(); header('X-Robots-Tag: noindex'); exit; }
     }
 }
+
