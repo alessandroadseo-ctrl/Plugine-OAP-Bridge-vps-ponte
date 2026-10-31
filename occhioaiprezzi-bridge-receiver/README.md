@@ -1,86 +1,63 @@
-# OcchioAiPrezzi Bridge Receiver 1.0.0
+# OcchioAiPrezzi Bridge Receiver 1.1.0
 
-Plugin WordPress autonomo per `oap-wp-1`. Non è installato sul sito reale e non attiva i worker.
+Ricevitore WordPress esclusivo del servizio VPS Ponte. La VPS decide inventario WooCommerce, ammissibilità GTIN, create/update, contenuti, SEO, eventi e pubblicazione. Il plugin autentica il comando, ne verifica struttura e proprietà, salva e rende i dati ricevuti.
 
-Il riferimento è [vps-ponte](https://github.com/alessandroadseo-ctrl/vps-ponte), commit `69a70c13bf92ea3df5a652e1f18b16dd3293c964`.
-Sono stati esaminati contratto WordPress, client, runner, renderer, schema export, schema eventi e test relativi.
-Il contratto dice esplicitamente **«Non creare post o prodotti per ogni GTIN»**: questo plugin usa due tabelle dedicate e file JSON statici immutabili privati, senza CPT o prodotti WooCommerce. `remote_id=oap:<gtin>` è un identificativo stabile dell'indice, non un ID post. Il frammento HTML viene servito localmente senza richieste a Ponte/Django e senza caricare il catalogo in RAM.
+Mantiene indice dedicato e file statici privati secondo l'architettura oap-wp-1: nessun CPT o prodotto WooCommerce per GTIN. remote_id resta `oap:<gtin>`. Nessuna chiamata remota per visita e nessun controllo inventario locale.
 
-## Requisiti
+**Cambio di contratto:** GET/PUT pages e ACK conservano protocollo e nomi, ma PUT richiede `operation:create|update`. Eligibility è ritirato (410), proof ignorata. Il vecchio client publish deve essere migrato sulla VPS prima dell'uso; vedere [API](docs/api.md) e [interventi precisi sul Ponte](docs/ponte-changes.md). Questa consegna non modifica la VPS né abilita l'invio.
 
-- WordPress 6.6+, PHP 8.1+ a 64 bit con mysqli, MySQL 8 o MariaDB 10.6+; tabelle del ricevitore **InnoDB**.
-- WooCommerce attivo; metadati GTIN verificati dall'amministratore.
-- Directory privata locale POSIX fuori da WordPress e dal document root, scrivibile da PHP. Supporto rename atomico e fsync di file/directory; niente object storage/NFS non verificato.
-- Utente DB con SELECT sulle tabelle posts/postmeta, CRUD sulle due tabelle dedicate, CREATE/ALTER per attivazione e privilegio `LOCK TABLES` nel DB WordPress. La sessione deve essere in autocommit e non dentro una transazione esterna.
-- HTTPS reale. Se termina sul reverse proxy, configurare `HTTPS=on` dal solo proxy fidato: il plugin non si fida direttamente di `X-Forwarded-Proto` inviato dal chiamante.
-- Namespace pubblico **riservato** e non radice, per esempio `/prodotti-ponte`. Allineare `BRIDGE_PUBLIC_BASE_URL` del Ponte allo stesso URL.
-- Escludere API, namespace pubblico e sitemap OAP da cache pagina, reverse proxy e CDN. Una cache esterna potrebbe servire offerte rimosse. Il plugin invia `no-store`; per integrazioni puntuali è disponibile `oap_bridge_page_changed`.
+## Installazione iniziale senza pubblicazione
 
-## Installazione e prima attivazione senza pubblicazione
+Richiede WordPress 6.6+, PHP 8.1+ a 64 bit con mysqli, MySQL 8/MariaDB 10.6+ con tabelle OAP InnoDB. Collaudato su WordPress 6.8.3, PHP 8.3.36 e MariaDB 11.4.13. **WooCommerce non è richiesto.**
 
-1. Eseguire backup coerente di DB e file; provare prima in staging. Lasciare `BRIDGE_PUBLISH_ENABLED=false` sul Ponte.
-2. Installare lo ZIP da **Plugin → Aggiungi plugin → Carica plugin**. L'attivazione crea soltanto `<prefix>oap_pages` e `<prefix>oap_slugs`; nessun contenuto viene pubblicato e nessuna chiamata esterna viene inviata.
-3. Creare la directory privata con proprietario PHP e permessi 0700. Non metterla in uploads o in una directory web servita. Esempio `/srv/oap-private/receiver`.
-4. Configurare in `wp-config.php`, prima di `wp-settings.php`, usando il secret manager dell'host:
+1. Lasciare i worker sospesi (`BRIDGE_PUBLISH_ENABLED=false`). Effettuare backup e provare in staging.
+2. Installare lo ZIP `dist/occhioaiprezzi-bridge-receiver-1.1.0.zip` e attivare. L'attivazione crea soltanto `<prefix>oap_pages` e `<prefix>oap_slugs`: nessun contenuto o chiamata esterna.
+3. Creare una directory privata POSIX fuori da WordPress **e dal document root**, di proprietà PHP, permessi 0700, con supporto rename atomico/fsync. Non usare uploads o storage non verificato.
+4. In wp-config.php, prima di wp-settings.php:
 
 ```php
-// Impostare OAP_BRIDGE_TOKEN nell'ambiente del processo PHP; generare almeno 32 byte casuali.
 define('OAP_BRIDGE_TOKEN', (string) getenv('OAP_BRIDGE_TOKEN'));
 define('OAP_BRIDGE_ARTIFACT_DIR', '/srv/oap-private/receiver');
 define('OAP_BRIDGE_PUBLIC_BASE', 'https://IL-TUO-DOMINIO/prodotti-ponte');
 define('OAP_BRIDGE_WRITES_ENABLED', false);
-define('OAP_BRIDGE_GTIN_ADAPTER_VERIFIED', false);
-define('OAP_BRIDGE_GTIN_META_KEYS', []);
-define('OAP_BRIDGE_JSONLD_ENABLED', false);
 ```
 
-Il token manca o ha meno di 32 caratteri: autenticazione/configurazione chiusa. Nessun token va inserito nel repository o nei log. Il codice non scrive log di request o header; disabilitare anche il logging Authorization sul proxy.
+Token casuale almeno 32 caratteri, configurato fuori dal sorgente e uguale a quello del Ponte. Nessun token nei log del plugin/proxy. Le vecchie impostazioni OAP_BRIDGE_GTIN_ADAPTER_VERIFIED/OAP_BRIDGE_GTIN_META_KEYS/OAP_BRIDGE_JSONLD_ENABLED non hanno più effetto e vanno rimosse: non esiste un adattatore GTIN né una scelta SEO locale.
 
-5. Verificare configurazione e proprietario directory. `GET pages/<gtin>` autenticato deve restituire versione 0 per un GTIN assente, senza creare file o pagine. Un `PUT` restituisce `503 oap_writes_disabled`.
-6. Verificare l'adattatore GTIN come descritto sotto. Solo dopo impostare le chiavi effettive e `OAP_BRIDGE_GTIN_ADAPTER_VERIFIED=true`; provare l'eligibility su prodotto semplice, variante e GTIN assente. Questo endpoint rimane di sola lettura rispetto ai dati prodotto.
-7. Verificare privilegi DB/lock nell'ambiente isolato con la suite. Le chiavi GTIN e il namespace reali non sono stati dedotti da questo repository, che non contiene il sito.
-8. Dopo il collaudo del sito e l'arbitraggio SEO della policy temporary, l'amministratore può abilitare separatamente `OAP_BRIDGE_WRITES_ENABLED=true` e, successivamente, i worker. **Questa consegna non esegue questi passi sul sito reale.**
+5. Usare HTTPS reale. Per TLS terminato dal proxy, configurare HTTPS=on solo dal proxy fidato, senza fidarsi di header arbitrari del client.
+6. Riservare l'intero namespace pubblico, non la radice del sito. Allineare BRIDGE_PUBLIC_BASE_URL della VPS; questo URL serve per il routing e i redirect locali, **non per rigenerare canonical SEO**.
+7. Escludere API e namespace pubblico da cache pagina/CDN; mantenere corretta invalidazione della sitemap. Configurare un limite body di 1 MiB anche sul proxy. Il plugin emette no-store. L'hook oap_bridge_page_changed notifica soltanto invalidazioni tecniche, non gestisce eventi editoriali.
+8. Verificare GET pages autenticato: per identità assente versione0/hash vuoto, nessuna scrittura. PUT resta 503 writes_disabled. L'eligibility legacy risponde 410: non è un errore da aggirare con Woo=false.
+9. Prima di un'eventuale futura attivazione operativa, completare la migrazione VPS e il collaudo coordinato descritto in ponte-changes.md. In questa attività non vengono abilitate scritture reali o pubblicazione.
 
-## Adattatore WooCommerce
+## Protezioni tecniche conservate
 
-Non esiste una chiave universale. Cercare nei plugin/importer del sito chi scrive GTIN, poi confrontare il dato di un prodotto semplice e di una variante noti con `wp post meta list <ID>` in staging (non condividere dump con credenziali). Per esempio `_global_unique_id` è una possibile chiave, non una configurazione automatica. Elencare tutte le chiavi autorevoli, al massimo 20.
+Bearer privato/HTTPS; owner `oap-wp-1`; unicità GTIN e registro globale slug; confronto versioni/hash; idempotenza; limiti richiesta; validazione HTML/URL/SEO e difesa da open redirect. Mai aggiornare post nativi o dati Woo.
 
-L'adattatore incluso supporta **soltanto metadati scalari in wp_postmeta**: numeri GTIN, zeri iniziali, spazi ASCII e trattini. Il protocollo usa 14 cifre. Il confronto normalizza gli zeri, quindi EAN-13 e GTIN-14 con prefisso zero corrispondono. Non applica checksum GS1 perché nemmeno lo schema del Ponte lo impone. Controlla product e product_variation, anche draft/private/trash: scelta conservativa.
+La VPS sceglie create/update. Il ricevitore verifica atomicamente la precondizione: create non modifica identità esistenti, update non crea identità assenti. Retry con stessa versione/hash restituisce l'ACK già installato senza modificare file, lastmod o cache, anche dopo perdita della risposta. Versioni inferiori e hash differenti per la stessa versione vengono rifiutati. Versione maggiore/hash uguale avanza solo il cursore: ogni variazione pubblica deve avere un nuovo hash deciso dalla VPS.
 
-Dati serializzati/JSON, tabelle custom, indici remoti o separatori diversi richiedono un altro adattatore **e il suo schema di lock**. In questi casi mantenere `OAP_BRIDGE_GTIN_ADAPTER_VERIFIED=false`. Non autorizzare l'adattatore incluso se non rappresenta l'intero inventario. Non usa cache negative o funzioni WooCommerce che potrebbero restituire dati obsoleti.
+La transazione InnoDB usa LOCK TABLES sui due indici OAP in WRITE e su wp_posts in READ per proteggere collisioni con contenuti estranei. **wp_postmeta non viene letto né bloccato** e non esiste controllo Woo. La serializzazione resta globale, più forte del lock per GTIN; misurare il carico in staging. Attesa lock massima 5 secondi, COMMIT/ROLLBACK e ripristino della sessione; niente riconnessione automatica durante la scrittura. L'utente DB necessita CRUD sulle tabelle OAP, SELECT su wp_posts e LOCK TABLES; CREATE/ALTER per attivazione. Non servono permessi d'inventario sui metadati Woo.
 
-Per GTIN Woo presenti l'eligibility restituisce `woocommerce_present:true` e proof vuota. PUT attivo o prima creazione, anche inattiva, viene bloccato. Un tombstone su un'identità già gestita può essere scritto con proof valida anche quando Woo è presente, per consentire soppressione controllata. Il client attuale si ferma prima del PUT in questo caso: vedere [modifiche Ponte](docs/ponte-changes.md).
+File immutabili JSON con HTML/SEO e hash interno separato dal content_hash opaco VPS: temporaneo, flush/fsync, rename atomico, fsync directory, poi riferimento dall'indice transazionale. Un crash può lasciare file non referenziati ma non un indice parzialmente installato. Nessuna cancellazione automatica di storia, tombstone o prenotazioni degli alias.
 
-## Concorrenza, file e proprietà
+## Rendering fedele al comando
 
-`LOCK TABLES posts READ, postmeta READ, oap_pages WRITE, oap_slugs WRITE`, con autocommit disabilitato, blocca anche writer WooCommerce che ignorano il plugin. Le due tabelle del ricevitore sono aggiornate nella stessa transazione InnoDB. COMMIT precede UNLOCK; eccezioni causano ROLLBACK. Una connessione interrotta non viene riconnessa automaticamente nel blocco critico.
+HTML accettato conservato byte per byte; markup non sicuro/non conforme rifiutato invece di essere riscritto. Niente shortcode, the_content o codice del payload. Metadati SEO salvati senza derivarli dall'HTML: titolo, description e canonical ricevuti, JSON-LD ricevuto serializzato con escaping sicuro. Nessun Product/Offer generato, nessun titolo o messaggio locale inventato. Corpo vuoto rimane vuoto, anche in inactive.
 
-La serializzazione è globale, quindi più forte del solo lock per GTIN. Semplifica la garanzia con import WooCommerce arbitrari, ma limita il throughput e blocca brevemente scritture del sito: fare benchmark in staging prima di abilitare cataloghi grandi. Attesa lock limitata a 5 secondi; lo stato di sessione viene ripristinato. Richieste ≤1 MiB e ≤500 alias. Configurare anche il limite del body sul reverse proxy: il limite applicativo viene verificato dopo che WordPress ha letto la richiesta.
+Documento HTML autonomo e CSS condiviso, indipendente dal tema; non usa wp_head, quindi non duplica SEO/JSON-LD da altri plugin. Non eredita menu/header/footer/analytics del tema. I campi SEO assenti non vengono riempiti. La CSP impedisce JavaScript eseguibile.
 
-File immutabili: JSON con HTML filtrato e SEO, nome SHA-256 **interno**, scrittura temporanea, flush/fsync, rename e fsync directory. Solo dopo il file è referenziato dalla transazione dell'indice. Un crash può lasciare un file non referenziato, ma non un indice parzialmente installato; nessun garbage collector cancella la cronologia. Conservare tutti i file nei backup. `content_hash` del Ponte è opaco (digest di dati sorgente/template), distinto dall'hash interno del file: non è ricalcolabile dal solo HTML.
+State active/inactive e removal_policy vengono applicati al protocollo HTTP: temporary 200/noindex, gone 410. La VPS deve fornire HTML inattivo e rimuovere offerte/schema se necessario: il ricevitore non decide cosa mostrare. Inactive/indexable=true è un payload strutturalmente incoerente, rifiutato con 400.
 
-Stessa versione/hash: ACK senza scritture o invalidazioni. Stessa versione/hash differente: 409. Versione inferiore: 409. Versione superiore/hash uguale: solo cursore, file pubblico e modified_at invariati. Versione superiore/hash diverso: aggiornamento atomico. Il registro conserva tutti gli alias e ne vieta il riutilizzo da un altro GTIN. Non modifica mai wp_posts né dati WooCommerce; il campo owner deve essere `oap-wp-1`.
+Gli alias 301 sono esattamente quelli nell'ultimo redirects ricevuto, diretti alla rotta locale dello slug corrente. Nessun alias precedente viene aggiunto automaticamente; uno non più richiesto risponde 404. Le prenotazioni storiche restano per impedire che un altro GTIN se ne appropri. Canonical SEO e destinazione tecnica del redirect sono separati, quindi un canonical esterno non diventa un open redirect.
 
-Le visite e la sitemap ricontrollano l'inventario locale e sopprimono anche GTIN aggiunti successivamente da import SQL che saltano gli hook. Non c'è una chiamata remota per visita. Questa verifica SQL conservativa può essere costosa su cataloghi grandi: misurare prima di attivare. Se l'inventario non è verificabile, la pagina risponde 503/noindex e la sitemap non emette gli URL.
+Sitemap WordPress nativa `/wp-sitemap-oap-1.xml`, aggiunta a `/wp-sitemap.xml`, in pagine di 1000 URL: active/indexable secondo il comando, loc dal canonical ricevuto, lastmod dal bundle. Se il sito usa sitemap di terze parti, collegare il provider prima dell'uso; nessuna integrazione Yoast/Rank Math viene presunta. Nessuna soppressione locale basata su Woo, neppure dopo un import: la VPS deve inviare lo stato successivo.
 
-## HTML e SEO
+## Aggiornamento e rollback
 
-HTML filtrato con allowlist e `wp_kses`; script, iframe, form, SVG, eventi inline, PHP e URL non HTTP(S) vengono rifiutati. Nessun PHP, shortcode, JavaScript o filtro the_content viene eseguito sui frammenti. URL canonical deve coincidere esattamente con base configurata + slug. Redirect accettati soltanto come slug e risolti su host/path locali: nessun open redirect.
+Schema delle tabelle invariato: pagine/file/tombstone della versione1.0 restano leggibili; i vecchi file non richiedono operation per il rendering. I nuovi PUT lo richiedono. Durante aggiornamento mantenere entrambi gli invii sospesi e l'interruttore di scrittura falso; non usare il vecchio client contro il nuovo ricevitore.
 
-Documento HTML autonomo, indipendente dal tema, con CSS condiviso `oap-1.css` una volta. Non esegue `wp_head`: titolo, description, canonical, robots e JSON-LD sono emessi dal solo adattatore nativo. Nessuna integrazione Yoast/Rank Math viene dichiarata. Il JSON-LD è serializzato come dato con escaping dei delimitatori script e Unicode separatori; attivarlo soltanto dopo il collaudo SEO. La CSP vieta JavaScript eseguibile. La pagina non eredita header/footer, menu o analytics del tema: eventuale integrazione grafica è lavoro successivo.
+Per rollback: sospendere worker e scritture, fare backup coerente di entrambe le tabelle e di tutti i file, ripristinare versione plugin e flusso client corrispondenti. Non ridurre versioni/tombstone né ripristinare una sola tabella. Disattivare il plugin interrompe rotte/redirect: predisporre continuità sul server se necessario. Nessun uninstall distruttivo.
 
-Sitemap WordPress nativa `/wp-sitemap-oap-1.xml`, pagine da 1000 URL, aggiunta all'indice `/wp-sitemap.xml`. Richiede sitemap native abilitate; se un plugin SEO le disabilita, collegare esplicitamente il provider all'infrastruttura sitemap del sito prima di attivare. Nessuna integrazione con sitemap di terze parti è già presente. `lastmod` proviene da `seo.modified_at` (epoch del bundle), mai dall'ACK.
+## Verifiche
 
-Inactive temporary: 200/noindex, messaggio locale senza offerte/schema/canonical. Inactive gone: 410/noindex, anche sugli alias. Gli alias di prodotti temporanei/attivi rispondono 301 diretto al canonical; riattivazione richiede versione maggiore. Il namespace dedicato non può essere la radice del sito.
-
-## Rollback
-
-1. Sospendere worker (`BRIDGE_PUBLISH_ENABLED=false`) e impostare `OAP_BRIDGE_WRITES_ENABLED=false`.
-2. Backup coerente delle due tabelle **insieme** e della directory artefatti; non cancellare tombstone/alias o ridurre versioni.
-3. Ripristinare la precedente versione del plugin compatibile con lo stesso schema. Questa versione non ha migrazioni distruttive né uninstall che elimina dati.
-4. Se occorre tornare a un backup DB, ripristinare indice e alias insieme ai file, sospendere la pubblicazione e riconciliare le versioni sul Ponte prima della ripartenza. Non forzare un downgrade di versione tramite PUT.
-5. Disattivare il plugin interrompe rotte pubbliche e redirect: predisporre prima un servizio di continuità o tombstone sul server se le pagine erano già indicizzate. I dati restano nel DB e su disco.
-
-## Test e API
-
-Vedere [test automatici](tests/README.md), [API](docs/api.md), [rapporto verifiche](docs/validation.md) e [modifiche Ponte](docs/ponte-changes.md). Lo ZIP contiene anche una copia della documentazione in `docs/`.
+[Test riproducibili](tests/README.md), [rapporto e limiti](docs/validation.md), [API](docs/api.md). Nessuna installazione sul sito reale o modifica della VPS effettuata.

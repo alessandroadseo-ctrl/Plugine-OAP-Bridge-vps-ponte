@@ -10,9 +10,8 @@ final class OAP_REST_API {
         try {
             $gtin = OAP_Support::gtin($r->get_url_params()['gtin'] ?? null);
             if (str_ends_with($r->get_route(), '/eligibility')) {
-                $keys = OAP_Eligibility::keys(); $db = new OAP_Storage();
-                $present = $db->locked(static fn($db)=>OAP_Eligibility::present($db, $gtin, $keys));
-                $result = ['gtin'=>$gtin,'woocommerce_present'=>$present,'proof'=>$present ? '' : OAP_Auth::proof($gtin)];
+                // Tombstone for old clients: never fabricate an eligibility/negative Woo result.
+                throw new OAP_Failure('oap_eligibility_moved_to_vps', 410);
             } elseif ($r->get_method() === 'PUT') {
                 if (strtolower(trim(explode(';', (string)$r->get_header('content-type'))[0])) !== 'application/json') { throw new OAP_Failure('oap_json_required', 415); }
                 $p = json_decode((string)$r->get_body(), true, 32, JSON_THROW_ON_ERROR);

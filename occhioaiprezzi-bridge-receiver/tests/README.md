@@ -1,9 +1,9 @@
-# Test isolati
+# Test del ricevitore esclusivo
 
-Richiedono Docker locale, Bash, Git, curl, Python 3 e `httpx` (`python3 -m pip install httpx`). Nessun accesso al sito reale. Le versioni collaudate sono WordPress 6.8.3, WooCommerce 10.3.5, PHP 8.3.36 e MariaDB 11.4.13; i tag runtime possono ricevere patch successive. Non è una matrice completa MySQL/PHP.
+Richiedono Docker locale, Bash, Git, curl, Python 3 e httpx. Usano WordPress 6.8.3, PHP 8.3.36, MariaDB 11.4.13; WooCommerce 10.3.5 è una **fixture opzionale per provare l'assenza di decisioni locali**, non una dipendenza runtime.
 
 ```sh
-# Da un checkout del plugin; il repository Ponte viene soltanto letto.
+# Il repository Ponte è soltanto letto, mai modificato.
 git clone https://github.com/alessandroadseo-ctrl/vps-ponte.git /workspace/vps-ponte
 export OAP_REFERENCE_CLIENT=/workspace/vps-ponte/app/wordpress/client.py
 bash tests/setup.sh
@@ -11,16 +11,23 @@ bash tests/run.sh
 bash tests/teardown.sh
 ```
 
-setup.sh crea container `oap-receiver-db`, `oap-receiver-php`, rete `oap-receiver-test`, WordPress e file sotto `../work/oap-receiver-tests` (oppure OAP_TEST_ROOT). Porta **127.0.0.1:18086** solamente. Credenziali nel fixture wp-config.php sono fittizie e solo per DB `oap_test`, host `receiver.test`. Non copiare il fixture nel sito reale. I container sono etichettati; teardown rifiuta di eliminare risorse non etichettate. Non esegue prune. Il checkout del Ponte non viene modificato.
+setup.sh crea i container oap-receiver-php/oap-receiver-db e rete oap-receiver-test, etichettati per teardown selettivo. Nessun prune. File sotto ../work/oap-receiver-tests oppure OAP_TEST_ROOT; sola porta 127.0.0.1:18086. Il fixture wp-config.php contiene credenziali fittizie per DB oap_test/host receiver.test, simula TLS e abilita le scritture **soltanto sul banco di prova**. Mai copiarlo sul sito reale. Il vecchio OAP_BRIDGE_JSONLD_ENABLED è deliberatamente false: non deve più decidere se mostrare lo schema ricevuto.
 
-`integration.php` usa WordPress e oggetti WooCommerce reali. Verifica creazione/aggiornamento, ACK identico dopo risposta persa, cursore, versioni, owner e post nativi, token, HTTPS, proof, HTML/URL, body limit, alias, prodotti/varianti, verifica ripetuta dopo nuova creazione Woo, tombstone, riattivazione, sitemap/lastmod, soppressione dopo import Woo e escaping JSON-LD.
+`integration.php` cancella le righe OAP del DB di test e verifica:
 
-`concurrency.py` avvia sei processi WordPress separati contro lo stesso MariaDB: uno crea e cinque recuperano lo stesso ACK. Poi un INSERT SQL Woo indipendente viene tentato durante un lock del ricevitore: deve restare bloccato fino al rilascio. Verifica anche WooCommerce non caricato. Non è un mock di database o una simulazione sequenziale della concorrenza.
+- operation obbligatoria dalla VPS, update non crea e create non sovrascrive;
+- retry identico dopo ACK perso, versioni e conflitti, unicità GTIN;
+- owner estraneo e collisioni con post nativi protetti;
+- Bearer/HTTPS/limite body e validazione HTML/URL/SEO;
+- HTML e SEO memorizzati invariati, canonical non derivato dallo slug, proof legacy inerte;
+- stati/indicizzazione applicati, sitemap alimentata dai metadati ricevuti;
+- GTIN realmente presente in prodotti/varianti Woo non può porre veto al comando, né il plugin ne modifica i metadati;
+- endpoint eligibility ritirato senza alcuna dichiarazione di ammissibilità.
 
-`http_client.py` importa **il vero** app/wordpress/client.py dal checkout del Ponte e lo esegue su HTTP reale del WordPress locale. Il transport cambia solo la destinazione HTTPS fittizia in localhost e simula TLS terminato dal proxy nel fixture. Verifica una risposta persa *dopo* l'installazione reale, retry senza duplicazione, canonical unico, JSON-LD unico e sicuro, sitemap pubblica, 301, temporary 200/noindex, gone 410 su canonical/alias e riattivazione. L'unico errore di trasporto iniettato è la perdita dell'ACK; tutte le risposte applicative provengono da WordPress reale.
+`concurrency.py` avvia sei processi indipendenti di creazione e poi sei di aggiornamento sullo stesso GTIN: un'unica scrittura e cinque ACK per ogni fase. Un INSERT SQL su metadati Woo deve completarsi **durante** il lock del ricevitore: nessun lock wp_postmeta. Una scrittura separata con WooCommerce non caricato deve riuscire.
 
-La suite cancella **tutte le righe delle due tabelle OAP del DB di test** all'inizio, poi crea/elimina prodotti Woo di fixture. Rifiuta DB diversi da oap_test o home host diverso da receiver.test. Non eseguirla su copie contenenti dati da preservare.
+`http_client.py` importa client.py originale solo per verificare che GET/request/ACK restino compatibili e che il vecchio publish fallisca al 410 senza scrivere. Un piccolo preparatore **locale ai test** rappresenta la VPS che sceglie operation da GET e invia PUT diretto: non modifica né simula l'esistenza di un client aggiornato in produzione. HTTP applicativo reale su WordPress; il transport cambia soltanto destinazione rete verso localhost e inietta un ACK perso dopo commit effettivo. Verifica HTML/SEO ricevuti, JSON-LD sicuro senza switch locale, sitemap, assenza di soppressione dopo modifica Woo e con Woo disattivato, alias solo espliciti, 200/410, riattivazione, noindex e nessun fallback inventato.
 
-Il test HTTP non è ripetibile da solo dopo aver già installato il suo GTIN: eseguire run.sh completo, che ripulisce prima l'indice. Gli artefatti di test restano per permettere l'analisi e non vengono cancellati dal plugin.
+La suite è distruttiva per **i soli dati OAP del DB di test**; rifiuta altri nomi DB/home host. Eseguire run.sh completo prima di ripetere HTTP, perché il fixture HTTP si aspetta inizialmente GTIN assente. Non usare su copie con dati da preservare.
 
-Non sono stati collaudati reverse proxy, TLS, CDN, tema, metadati GTIN e plugin SEO del sito reale. La fixture HTTPS non equivale a una verifica di certificati o del proxy di produzione.
+Non dimostra che la VPS disponga già dell'inventario autorevole o del client migrato: quei lavori sono elencati in docs/ponte-changes.md. Non collauda TLS, CDN, tema, SEO del sito reale, MySQL8 o un catalogo completo.

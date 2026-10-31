@@ -2,10 +2,10 @@
 defined('ABSPATH') || exit;
 final class OAP_Product_Pages {
     public static function validate(array $p, string $gtin): array {
-        foreach (['protocol','gtin','slug','version','content_hash','html','seo','state','redirects','removal_policy','eligibility_proof'] as $key) {
+        foreach (['protocol','gtin','slug','version','content_hash','html','seo','state','redirects','removal_policy','operation'] as $key) {
             if (!array_key_exists($key, $p)) { throw new OAP_Failure('oap_missing_field'); }
         }
-        if ($p['protocol'] !== 'oap-wp-1' || $p['gtin'] !== $gtin || !is_int($p['version']) || $p['version'] < 1
+        if (!in_array($p['operation'], ['create','update'], true) || $p['protocol'] !== 'oap-wp-1' || $p['gtin'] !== $gtin || !is_int($p['version']) || $p['version'] < 1
             || !is_string($p['content_hash']) || !preg_match('/\A[a-f0-9]{64}\z/', $p['content_hash'])
             || !in_array($p['state'], ['active','inactive'], true) || !in_array($p['removal_policy'], ['gone','temporary'], true)
             || !is_string($p['html']) || !is_array($p['seo']) || !is_array($p['redirects']) || !array_is_list($p['redirects']) || count($p['redirects']) > 500) {
@@ -14,7 +14,10 @@ final class OAP_Product_Pages {
         OAP_Support::slug($p['slug']);
         foreach ($p['redirects'] as $s) { OAP_Support::slug($s); }
         $p['redirects'] = array_values(array_unique($p['redirects']));
-        OAP_Auth::verify($p['eligibility_proof'], $gtin);
+        // Legacy proof is tolerated as inert metadata, never as an authorization decision.
+        if (isset($p['eligibility_proof']) && (!is_string($p['eligibility_proof']) || strlen($p['eligibility_proof']) > 512)) {
+            throw new OAP_Failure('oap_invalid_payload');
+        }
         if (str_contains($p['html'], '<?')) { throw new OAP_Failure('oap_unsafe_html'); }
         $processor = new WP_HTML_Tag_Processor($p['html']);
         while ($processor->next_tag()) {
@@ -31,17 +34,18 @@ final class OAP_Product_Pages {
         }
         $allowed['a'] = ['href'=>true,'rel'=>true,'title'=>true];
         $allowed['img'] = ['src'=>true,'alt'=>true,'loading'=>true,'width'=>true,'height'=>true];
-        $p['html'] = wp_kses($p['html'], $allowed, ['http','https']);
+        // Preserve accepted HTML byte-for-byte; reject rather than silently rewrite content.
+        if (wp_kses($p['html'], $allowed, ['http','https']) !== $p['html']) { throw new OAP_Failure('oap_unsafe_html'); }
         $seo = $p['seo'];
         if (!isset($seo['indexable'], $seo['modified_at']) || !is_bool($seo['indexable']) || !is_int($seo['modified_at']) || $seo['modified_at'] < 0
             || (isset($seo['gtin']) && $seo['gtin'] !== $gtin)) { throw new OAP_Failure('oap_invalid_seo'); }
         foreach (['title','description','canonical','h1','brand','image','category'] as $field) {
             if (isset($seo[$field]) && (!is_string($seo[$field]) || strlen($seo[$field]) > 4096)) { throw new OAP_Failure('oap_invalid_seo'); }
         }
-        if ($p['state'] === 'active') {
-            if (empty($seo['title']) || ($seo['canonical'] ?? '') !== OAP_Support::canonical($p['slug'])) { throw new OAP_Failure('oap_invalid_canonical'); }
-            OAP_Support::url($seo['canonical']);
-        }
+        if ($p['state'] === 'inactive' && $seo['indexable']) { throw new OAP_Failure('oap_invalid_seo'); }
+        if ($p['state'] === 'active' && (empty($seo['title']) || empty($seo['canonical']))) { throw new OAP_Failure('oap_invalid_seo'); }
+        // Canonical is a VPS-provided SEO value, not the technical route or redirect target.
+        if (isset($seo['canonical'])) { OAP_Support::url($seo['canonical']); }
         if (!empty($seo['image'])) { OAP_Support::url($seo['image']); }
         if (isset($seo['jsonld']) && (!is_array($seo['jsonld']) || array_is_list($seo['jsonld']))) { throw new OAP_Failure('oap_invalid_jsonld'); }
         if (isset($seo['jsonld'])) { self::validate_jsonld($seo['jsonld']); }
@@ -63,10 +67,8 @@ final class OAP_Product_Pages {
     public static function put(array $p, string $gtin): array {
         global $wpdb;
         if (OAP_Support::cfg('OAP_BRIDGE_WRITES_ENABLED', false) !== true) { throw new OAP_Failure('oap_writes_disabled', 503); }
-        $proof = $p['eligibility_proof'] ?? null;
-        $p = self::validate($p, $gtin); $keys = OAP_Eligibility::keys(); $db = new OAP_Storage();
-        $result = $db->locked(static function ($db) use ($p, $gtin, $keys, $proof, $wpdb) {
-            OAP_Auth::verify($proof, $gtin);
+        $p = self::validate($p, $gtin); $db = new OAP_Storage();
+        $result = $db->locked(static function ($db) use ($p, $gtin, $wpdb) {
             $row = $db->page($gtin);
             self::ack($gtin, $row);
             if ($row && $p['version'] < (int)$row['version']) { throw new OAP_Failure('oap_remote_ahead', 409); }
@@ -74,13 +76,15 @@ final class OAP_Product_Pages {
                 if (!hash_equals($row['installed_hash'], $p['content_hash'])) { throw new OAP_Failure('oap_version_conflict', 409); }
                 return self::ack($gtin, $row, 'unchanged');
             }
-            if (OAP_Eligibility::present($db, $gtin, $keys) && (!$row || $p['state'] === 'active')) { throw new OAP_Failure('oap_woocommerce_present', 409); }
+            // The VPS chooses the operation; never silently turn create into update or vice versa.
+            if ($p['operation'] === 'create' && $row) { throw new OAP_Failure('oap_page_exists', 409); }
+            if ($p['operation'] === 'update' && !$row) { throw new OAP_Failure('oap_page_absent', 409); }
             if ($row && hash_equals($row['installed_hash'], $p['content_hash'])) {
                 $db->query($wpdb->prepare("UPDATE `{$db->pages}` SET version=%d WHERE gtin=%s", $p['version'], $gtin));
                 $row['version'] = $p['version'];
                 return self::ack($gtin, $row, 'cursor_advanced');
             }
-            $slugs = array_values(array_unique(array_merge($p['redirects'], [$p['slug']], $row ? [$row['slug']] : [])));
+            $slugs = array_values(array_unique(array_merge($p['redirects'], [$p['slug']])));
             foreach ($slugs as $slug) {
                 $claim = $db->one($wpdb->prepare("SELECT gtin FROM `{$db->slugs}` WHERE slug=%s", $slug));
                 if ($claim && $claim['gtin'] !== $gtin) { throw new OAP_Failure('oap_slug_conflict', 409); }
@@ -93,15 +97,20 @@ final class OAP_Product_Pages {
             foreach ($slugs as $slug) {
                 $db->query($wpdb->prepare("INSERT INTO `{$db->slugs}` (slug,gtin) VALUES (%s,%s) ON DUPLICATE KEY UPDATE gtin=VALUES(gtin)", $slug, $gtin));
             }
-            $db->query($wpdb->prepare("INSERT INTO `{$db->pages}` (gtin,owner,version,installed_hash,slug,artifact,state,indexable,modified_at)
-                VALUES (%s,'oap-wp-1',%d,%s,%s,%s,%s,%d,%d) ON DUPLICATE KEY UPDATE version=VALUES(version),installed_hash=VALUES(installed_hash),
-                slug=VALUES(slug),artifact=VALUES(artifact),state=VALUES(state),indexable=VALUES(indexable),modified_at=VALUES(modified_at)",
-                $gtin,$p['version'],$p['content_hash'],$p['slug'],$artifact,$p['state'],($p['state']==='active' && $p['seo']['indexable'])?1:0,$p['seo']['modified_at']));
-            return self::ack($gtin, $db->page($gtin), $row ? 'updated' : 'created');
+            if ($p['operation'] === 'create') {
+                $db->query($wpdb->prepare("INSERT INTO `{$db->pages}` (gtin,owner,version,installed_hash,slug,artifact,state,indexable,modified_at)
+                    VALUES (%s,'oap-wp-1',%d,%s,%s,%s,%s,%d,%d)",
+                    $gtin,$p['version'],$p['content_hash'],$p['slug'],$artifact,$p['state'],$p['seo']['indexable']?1:0,$p['seo']['modified_at']));
+            } else {
+                $db->query($wpdb->prepare("UPDATE `{$db->pages}` SET version=%d,installed_hash=%s,slug=%s,artifact=%s,state=%s,indexable=%d,modified_at=%d
+                    WHERE gtin=%s AND owner='oap-wp-1'",
+                    $p['version'],$p['content_hash'],$p['slug'],$artifact,$p['state'],$p['seo']['indexable']?1:0,$p['seo']['modified_at'],$gtin));
+            }
+            return self::ack($gtin, $db->page($gtin), $p['operation'] === 'create' ? 'created' : 'updated');
         });
         if (in_array($result['operation'], ['created','updated'], true)) {
             // Integrate site-specific CDN invalidation without a full-catalog purge.
-            do_action('oap_bridge_page_changed', $gtin, OAP_Support::canonical($p['slug']), $p['redirects']);
+            do_action('oap_bridge_page_changed', $gtin, OAP_Support::page_url($p['slug']), $p['redirects']);
         }
         return $result;
     }

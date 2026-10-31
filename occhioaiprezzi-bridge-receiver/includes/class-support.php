@@ -38,7 +38,7 @@ final class OAP_Support {
         }
         return $base;
     }
-    public static function canonical(string $slug): string { return self::base() . '/' . $slug . '/'; }
+    public static function page_url(string $slug): string { return self::base() . '/' . $slug . '/'; }
     public static function json($data): string {
         $value = wp_json_encode($data, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_THROW_ON_ERROR);
         return $value;

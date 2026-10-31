@@ -1,13 +1,15 @@
 # OcchioAiPrezzi Bridge Receiver
 
-Plugin WordPress autonomo per il protocollo `oap-wp-1` del repository separato [vps-ponte](https://github.com/alessandroadseo-ctrl/vps-ponte).
+Plugin WordPress **esclusivamente ricevente** del servizio VPS Ponte. WooCommerce, ammissibilità GTIN, scelta create/update, contenuti/SEO, eventi e decisioni di pubblicazione appartengono alla VPS. Il plugin conserva autenticazione, proprietà, unicità, versioni, idempotenza e serializzazione delle scritture.
 
-Implementa indice dedicato e artefatti statici secondo il contratto reale, API Bearer private, controllo WooCommerce atomico, idempotenza/versioni, registro slug, SEO nativa, sitemap e tombstone. Non crea post o prodotti WooCommerce per ogni GTIN. Scritture e adattatore non sono abilitati per default.
+## Versione 1.1.0
 
-- [Installazione, configurazione e rollback](occhioaiprezzi-bridge-receiver/README.md)
-- [API](docs/api.md)
-- [Modifiche proposte al Ponte, non applicate](docs/ponte-changes.md)
-- [Verifiche e limiti](docs/validation.md)
-- [Test isolati riproducibili](occhioaiprezzi-bridge-receiver/tests/README.md)
+Il nuovo PUT richiede `operation:create|update`; il vecchio endpoint eligibility risponde 410 e non produce risultati Woo/proof. HTML/SEO pronti vengono salvati e resi senza generazione o riscrittura; stati e alias ricevuti vengono applicati. **Il client publish del Ponte deve essere migrato prima dell'uso.**
 
-Non installato sul sito reale. Nessun invio prodotti o worker attivato.
+- [ZIP installabile](dist/occhioaiprezzi-bridge-receiver-1.1.0.zip), sorgenti e test inclusi; [checksum](dist/SHA256SUMS.txt).
+- [Configurazione senza pubblicazione, aggiornamento e rollback](occhioaiprezzi-bridge-receiver/README.md).
+- [API e cambiamenti di contratto](docs/api.md).
+- [Interventi esatti richiesti sulla VPS, non applicati](docs/ponte-changes.md).
+- [Verifiche](docs/validation.md) e [test isolati](occhioaiprezzi-bridge-receiver/tests/README.md).
+
+Scritture disabilitate per default. Nessuna installazione sul sito reale, invio prodotti, modifica VPS o abilitazione worker.
