@@ -18,16 +18,19 @@ assert sum(r['operation']=='created' for r in rows)==1, rows
 assert len({r['remote_id'] for r in rows})==1
 assert sum(r['operation']=='unchanged' for r in rows)==5
 print('PASS: six concurrent identical writes, one creation and five confirmations')
-pid=int(run('seed'))
-lock=subprocess.Popen(command('hold'),stdout=subprocess.PIPE,text=True)
-assert lock.stdout.readline().strip()=='LOCKED'
-start=time.monotonic()
-sql=f"INSERT INTO wp_postmeta(post_id,meta_key,meta_value) VALUES ({pid},'_test_gtin','00000000000998')"
-subprocess.run(['docker','exec',DB,'mariadb','-uroot','-poap-local-test-only','oap_test','-e',sql],check=True,capture_output=True)
-elapsed=time.monotonic()-start
-assert elapsed>1.5, elapsed
-assert lock.wait(timeout=10)==0
-print(lock.stdout.read().strip())
-print('PASS: unrelated Woo SQL writer blocked until receiver releases table locks')
-subprocess.run(['docker','exec',PHP,'wp','--allow-root','post','delete',str(pid),'--force'],check=True,capture_output=True)
-subprocess.run(['docker','exec',PHP,'wp','--allow-root','--skip-plugins=woocommerce','eval-file',FILE,'unavailable'],check=True)
+run('reset')
+with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+    rows=[json.loads(r) for r in pool.map(run,['put','conflict']*3)]
+assert sum(r.get('operation')=='created' for r in rows)==1, rows
+assert sum(r.get('status')==409 for r in rows)==3, rows
+print('PASS: competing create requests cannot overwrite one GTIN')
+run('reset')
+with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+    rows=[json.loads(r) for r in pool.map(run,['put','slug-race']*3)]
+assert sum(r.get('operation')=='created' for r in rows)==1, rows
+assert sum(r.get('error')=='oap_slug_conflict' for r in rows)==3, rows
+print('PASS: concurrent GTINs cannot claim the same slug')
+run('reset')
+r=subprocess.check_output(['docker','exec',PHP,'wp','--allow-root','--skip-plugins=woocommerce','eval-file',FILE,'put'],text=True)
+assert json.loads(r)['operation']=='created'
+print('PASS: receiver creates without WooCommerce loaded')

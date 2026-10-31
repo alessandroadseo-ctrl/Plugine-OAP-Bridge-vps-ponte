@@ -54,8 +54,8 @@ final class OAP_Storage {
     }
     public function locked(callable $fn) {
         global $wpdb;
-        // Global serialization is deliberately stronger than per-GTIN. READ locks
-        // block *all* concurrent Woo writes, even writers unaware of this plugin.
+        // Serialize identity and slug claims; posts READ protects native ownership.
+        // No WooCommerce inventory or postmeta locks are required.
         // Both custom tables must be transactional; no WP hooks run in this scope.
         foreach ([$this->pages, $this->slugs] as $table) {
             $engine = $this->one($wpdb->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=%s', $table));
@@ -67,7 +67,7 @@ final class OAP_Storage {
         $this->query('SET SESSION lock_wait_timeout=5');
         $this->query('SET autocommit=0');
         try {
-            $this->query("LOCK TABLES `{$wpdb->posts}` READ, `{$wpdb->postmeta}` READ, `{$this->pages}` WRITE, `{$this->slugs}` WRITE");
+            $this->query("LOCK TABLES `{$wpdb->posts}` READ, `{$this->pages}` WRITE, `{$this->slugs}` WRITE");
             $locked = true;
             $result = $fn($this);
             $this->query('COMMIT');
@@ -119,3 +119,4 @@ final class OAP_Storage {
         return json_decode($bytes, true, 64, JSON_THROW_ON_ERROR);
     }
 }
+

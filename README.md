@@ -1,13 +1,13 @@
 # OcchioAiPrezzi Bridge Receiver
 
-Plugin WordPress autonomo per il protocollo `oap-wp-1` del repository separato [vps-ponte](https://github.com/alessandroadseo-ctrl/vps-ponte).
+Plugin WordPress ricevente del servizio VPS Ponte. La VPS decide ammissibilità WooCommerce/GTIN, creazione o aggiornamento, contenuti, SEO, eventi e pubblicazione; il plugin valida tecnicamente, salva e rende HTML e metadati già pronti, stati e redirect ricevuti.
 
-Implementa indice dedicato e artefatti statici secondo il contratto reale, API Bearer private, controllo WooCommerce atomico, idempotenza/versioni, registro slug, SEO nativa, sitemap e tombstone. Non crea post o prodotti WooCommerce per ogni GTIN. Scritture e adattatore non sono abilitati per default.
+Mantiene Bearer HTTPS, proprietà delle pagine, GTIN unico, idempotenza, versioni e serializzazione delle scritture. Non crea post o prodotti WooCommerce. Scritture disabilitate per default.
 
-- [Installazione, configurazione e rollback](occhioaiprezzi-bridge-receiver/README.md)
-- [API](docs/api.md)
-- [Modifiche proposte al Ponte, non applicate](docs/ponte-changes.md)
+- [API e variazioni oap-wp-1](docs/api.md)
+- [Interventi obbligatori nel repository vps-ponte, non applicati](docs/ponte-changes.md)
+- [Configurazione](occhioaiprezzi-bridge-receiver/README.md)
+- [Test isolati](occhioaiprezzi-bridge-receiver/tests/README.md)
 - [Verifiche e limiti](docs/validation.md)
-- [Test isolati riproducibili](occhioaiprezzi-bridge-receiver/tests/README.md)
 
-Non installato sul sito reale. Nessun invio prodotti o worker attivato.
+Nessuna installazione sul sito reale o modifica alla VPS. Nessun flag operativo di pubblicazione abilitato.
