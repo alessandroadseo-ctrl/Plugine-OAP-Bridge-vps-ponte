@@ -1,0 +1,59 @@
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/concurrent-worker.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/integration.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/wp-config.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/occhioaiprezzi-bridge-receiver.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-rest-api.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-auth.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-storage.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-product-pages.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-sitemap.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-support.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-eligibility.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-seo.php
+PASS: real WooCommerce loaded
+PASS: absent page reconciliation
+PASS: new product creation
+PASS: identical retry after lost ACK
+PASS: retry preserves artifact and lastmod
+PASS: same version different hash
+PASS: update same remote identity
+PASS: obsolete version
+PASS: cursor only no public change
+PASS: foreign owner rejected
+PASS: wrong token
+PASS: missing token
+PASS: HTTP rejected
+PASS: expired proof
+PASS: other GTIN proof
+PASS: script HTML rejected
+PASS: event handler rejected
+PASS: unsafe URL rejected
+PASS: external canonical rejected
+PASS: open redirect rejected
+PASS: request size limit
+PASS: native page ownership protected
+PASS: global historical alias protected
+PASS: Woo simple GTIN normalized
+PASS: forged eligibility cannot bypass authoritative recheck
+PASS: Woo variation GTIN
+PASS: Woo added after preliminary eligibility
+PASS: sitemap canonical and bundle lastmod
+PASS: inactive temporary tombstone
+PASS: inactive excluded from sitemap
+PASS: reactivation greater version
+PASS: later Woo GTIN suppresses public page and sitemap
+PASS: Woo removal restores eligibility
+PASS: JSON-LD script boundary escaped
+PASS: one identity per GTIN
+Success: Integration suite complete
+PASS: WooCommerce unavailable fails closed
+PASS: six concurrent identical writes, one creation and five confirmations
+PASS: Woo writer excluded from installation window
+PASS: unrelated Woo SQL writer blocked until receiver releases table locks
+PASS: unchanged Ponte Python client, real HTTP and lost ACK recovery
+PASS: active HTTP, single canonical, single escaped JSON-LD
+PASS: live WordPress sitemap provider
+PASS: historical slug direct 301
+PASS: temporary inactive 200/noindex, no offers, excluded sitemap
+PASS: gone 410 on canonical and historical aliases
+PASS: reactivation and private uncached API errors
