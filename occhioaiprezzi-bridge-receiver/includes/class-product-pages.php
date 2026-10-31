@@ -106,11 +106,16 @@ final class OAP_Product_Pages {
             foreach ($slugs as $slug) {
                 $db->query($wpdb->prepare("INSERT INTO `{$db->slugs}` (slug,gtin) VALUES (%s,%s) ON DUPLICATE KEY UPDATE gtin=VALUES(gtin)", $slug, $gtin));
             }
-            $db->query($wpdb->prepare("INSERT INTO `{$db->pages}` (gtin,owner,version,installed_hash,slug,artifact,state,indexable,modified_at)
-                VALUES (%s,'oap-wp-1',%d,%s,%s,%s,%s,%d,%d) ON DUPLICATE KEY UPDATE version=VALUES(version),installed_hash=VALUES(installed_hash),
-                slug=VALUES(slug),artifact=VALUES(artifact),state=VALUES(state),indexable=VALUES(indexable),modified_at=VALUES(modified_at)",
-                $gtin,$p['version'],$p['content_hash'],$p['slug'],$artifact,$p['state'],$p['seo']['indexable']?1:0,$p['seo']['modified_at']));
-            return self::ack($gtin, $db->page($gtin), $row ? 'updated' : 'created');
+            if ($p['operation'] === 'create') {
+                $db->query($wpdb->prepare("INSERT INTO `{$db->pages}` (gtin,owner,version,installed_hash,slug,artifact,state,indexable,modified_at)
+                    VALUES (%s,'oap-wp-1',%d,%s,%s,%s,%s,%d,%d)",
+                    $gtin,$p['version'],$p['content_hash'],$p['slug'],$artifact,$p['state'],$p['seo']['indexable']?1:0,$p['seo']['modified_at']));
+            } else {
+                $db->query($wpdb->prepare("UPDATE `{$db->pages}` SET version=%d,installed_hash=%s,slug=%s,artifact=%s,state=%s,indexable=%d,modified_at=%d
+                    WHERE gtin=%s AND owner='oap-wp-1'",
+                    $p['version'],$p['content_hash'],$p['slug'],$artifact,$p['state'],$p['seo']['indexable']?1:0,$p['seo']['modified_at'],$gtin));
+            }
+            return self::ack($gtin, $db->page($gtin), $p['operation'] === 'create' ? 'created' : 'updated');
         });
         if (in_array($result['operation'], ['created','updated'], true)) {
             // Integrate site-specific CDN invalidation without a full-catalog purge.

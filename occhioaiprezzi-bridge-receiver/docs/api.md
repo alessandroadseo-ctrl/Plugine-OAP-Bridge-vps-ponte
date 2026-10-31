@@ -38,7 +38,7 @@ HTML: la validazione tecnica rifiuta PHP, script, handler on*, URL pericolosi e 
 
 ### Precondizioni e retry
 
-Sotto lock SQL, il ricevitore verifica proprietà, versione, GTIN unico, slug e pagine native estranee. `create` su identità esistente: 409 `oap_page_exists`; `update` su assente: 409 `oap_page_absent`. Non sceglie un'operazione alternativa.
+Sotto lock SQL, il ricevitore verifica proprietà, versione, GTIN unico, slug e pagine native estranee. `create` su identità esistente: 409 `oap_page_exists`; `update` su assente: 409 `oap_page_absent`. Non sceglie un'operazione alternativa. La persistenza usa INSERT per create e UPDATE vincolato al proprietario per update, senza upsert sull'indice pagine.
 
 Eccezione per recuperare un ACK perso: stessa versione, stesso hash e stesso documento restituiscono `unchanged`, anche per un retry create. Stessa versione/hash diverso: `oap_version_conflict`; versione inferiore: `oap_remote_ahead`. Versione maggiore/hash uguale richiede `update` e documento identico: avanza solo il cursore (`cursor_advanced`). Hash riutilizzato con HTML, SEO, stato, slug o alias diversi: `oap_hash_conflict`. Per il confronto del documento si escludono solo operation, version, content_hash ed eligibility_proof; ordine delle chiavi JSON irrilevante. La VPS deve cambiare hash per ogni cambiamento del documento, incluso modified_at.
 
