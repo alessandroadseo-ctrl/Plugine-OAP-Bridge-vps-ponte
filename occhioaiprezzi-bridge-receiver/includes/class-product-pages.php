@@ -2,22 +2,19 @@
 defined('ABSPATH') || exit;
 final class OAP_Product_Pages {
     public static function validate(array $p, string $gtin): array {
+        OAP_Support::gtin($gtin);
         foreach (['protocol','gtin','slug','version','content_hash','html','seo','state','redirects','removal_policy','operation'] as $key) {
             if (!array_key_exists($key, $p)) { throw new OAP_Failure('oap_missing_field'); }
         }
-        if (!in_array($p['operation'], ['create','update'], true) || $p['protocol'] !== 'oap-wp-1' || $p['gtin'] !== $gtin || !is_int($p['version']) || $p['version'] < 1
+        if ($p['protocol'] !== 'oap-wp-1' || $p['gtin'] !== $gtin || !is_int($p['version']) || $p['version'] < 1
             || !is_string($p['content_hash']) || !preg_match('/\A[a-f0-9]{64}\z/', $p['content_hash'])
             || !in_array($p['state'], ['active','inactive'], true) || !in_array($p['removal_policy'], ['gone','temporary'], true)
-            || !is_string($p['html']) || !is_array($p['seo']) || !is_array($p['redirects']) || !array_is_list($p['redirects']) || count($p['redirects']) > 500) {
+            || !in_array($p['operation'], ['create','update'], true) || !is_string($p['html']) || !is_array($p['seo']) || array_is_list($p['seo']) || !is_array($p['redirects']) || !array_is_list($p['redirects']) || count($p['redirects']) > 500) {
             throw new OAP_Failure('oap_invalid_payload');
         }
         OAP_Support::slug($p['slug']);
         foreach ($p['redirects'] as $s) { OAP_Support::slug($s); }
         $p['redirects'] = array_values(array_unique($p['redirects']));
-        // Legacy proof is tolerated as inert metadata, never as an authorization decision.
-        if (isset($p['eligibility_proof']) && (!is_string($p['eligibility_proof']) || strlen($p['eligibility_proof']) > 512)) {
-            throw new OAP_Failure('oap_invalid_payload');
-        }
         if (str_contains($p['html'], '<?')) { throw new OAP_Failure('oap_unsafe_html'); }
         $processor = new WP_HTML_Tag_Processor($p['html']);
         while ($processor->next_tag()) {
@@ -34,7 +31,7 @@ final class OAP_Product_Pages {
         }
         $allowed['a'] = ['href'=>true,'rel'=>true,'title'=>true];
         $allowed['img'] = ['src'=>true,'alt'=>true,'loading'=>true,'width'=>true,'height'=>true];
-        // Preserve accepted HTML byte-for-byte; reject rather than silently rewrite content.
+        // Validate without rewriting the VPS document. Reject unsupported markup.
         if (wp_kses($p['html'], $allowed, ['http','https']) !== $p['html']) { throw new OAP_Failure('oap_unsafe_html'); }
         $seo = $p['seo'];
         if (!isset($seo['indexable'], $seo['modified_at']) || !is_bool($seo['indexable']) || !is_int($seo['modified_at']) || $seo['modified_at'] < 0
@@ -42,10 +39,9 @@ final class OAP_Product_Pages {
         foreach (['title','description','canonical','h1','brand','image','category'] as $field) {
             if (isset($seo[$field]) && (!is_string($seo[$field]) || strlen($seo[$field]) > 4096)) { throw new OAP_Failure('oap_invalid_seo'); }
         }
+        if (empty($seo['title']) || !is_string($seo['canonical'] ?? null)) { throw new OAP_Failure('oap_invalid_seo'); }
+        OAP_Support::url($seo['canonical']);
         if ($p['state'] === 'inactive' && $seo['indexable']) { throw new OAP_Failure('oap_invalid_seo'); }
-        if ($p['state'] === 'active' && (empty($seo['title']) || empty($seo['canonical']))) { throw new OAP_Failure('oap_invalid_seo'); }
-        // Canonical is a VPS-provided SEO value, not the technical route or redirect target.
-        if (isset($seo['canonical'])) { OAP_Support::url($seo['canonical']); }
         if (!empty($seo['image'])) { OAP_Support::url($seo['image']); }
         if (isset($seo['jsonld']) && (!is_array($seo['jsonld']) || array_is_list($seo['jsonld']))) { throw new OAP_Failure('oap_invalid_jsonld'); }
         if (isset($seo['jsonld'])) { self::validate_jsonld($seo['jsonld']); }
@@ -58,6 +54,18 @@ final class OAP_Product_Pages {
             if (in_array($key, ['url','image','@context','availability'], true) && is_string($value)) { OAP_Support::url($value); }
             if (is_array($value)) { self::validate_jsonld($value, $depth + 1); }
         }
+    }
+    private static function same_document(array $p, array $row): void {
+        $old = OAP_Storage::read($row['artifact']);
+        foreach (['operation','version','content_hash','eligibility_proof'] as $key) { unset($old[$key], $p[$key]); }
+        // Opaque Ponte hashes cannot authorize a different document on retry/cursor advance.
+        if (self::ordered($old) !== self::ordered($p)) { throw new OAP_Failure('oap_hash_conflict', 409); }
+    }
+    private static function ordered(array $value): array {
+        if (!array_is_list($value)) { ksort($value); }
+        foreach ($value as &$item) { if (is_array($item)) { $item = self::ordered($item); } }
+        unset($item);
+        return $value;
     }
     public static function ack(string $gtin, ?array $row, string $operation = 'managed'): array {
         if ($row && $row['owner'] !== 'oap-wp-1') { throw new OAP_Failure('oap_foreign_owner', 409); }
@@ -74,12 +82,13 @@ final class OAP_Product_Pages {
             if ($row && $p['version'] < (int)$row['version']) { throw new OAP_Failure('oap_remote_ahead', 409); }
             if ($row && $p['version'] === (int)$row['version']) {
                 if (!hash_equals($row['installed_hash'], $p['content_hash'])) { throw new OAP_Failure('oap_version_conflict', 409); }
+                self::same_document($p, $row);
                 return self::ack($gtin, $row, 'unchanged');
             }
-            // The VPS chooses the operation; never silently turn create into update or vice versa.
             if ($p['operation'] === 'create' && $row) { throw new OAP_Failure('oap_page_exists', 409); }
             if ($p['operation'] === 'update' && !$row) { throw new OAP_Failure('oap_page_absent', 409); }
             if ($row && hash_equals($row['installed_hash'], $p['content_hash'])) {
+                self::same_document($p, $row);
                 $db->query($wpdb->prepare("UPDATE `{$db->pages}` SET version=%d WHERE gtin=%s", $p['version'], $gtin));
                 $row['version'] = $p['version'];
                 return self::ack($gtin, $row, 'cursor_advanced');
@@ -110,8 +119,9 @@ final class OAP_Product_Pages {
         });
         if (in_array($result['operation'], ['created','updated'], true)) {
             // Integrate site-specific CDN invalidation without a full-catalog purge.
-            do_action('oap_bridge_page_changed', $gtin, OAP_Support::page_url($p['slug']), $p['redirects']);
+            do_action('oap_bridge_page_changed', $gtin, OAP_Support::canonical($p['slug']), $p['redirects']);
         }
         return $result;
     }
 }
+

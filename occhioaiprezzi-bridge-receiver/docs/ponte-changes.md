@@ -1,65 +1,22 @@
-# Interventi necessari su vps-ponte — NON applicati
+# Interventi richiesti in vps-ponte (non applicati)
 
-Riferimento letto: `alessandroadseo-ctrl/vps-ponte` commit `69a70c13bf92ea3df5a652e1f18b16dd3293c964`. Questa attività cambia soltanto il repository del plugin WordPress. Nessun file/configurazione/worker della VPS viene modificato o abilitato.
+Questa attività modifica esclusivamente il ricevitore WordPress. Nessuna modifica, configurazione, abilitazione publish o esecuzione worker è stata effettuata sulla VPS o sul sito reale.
 
-## Contratto da coordinare prima dell'uso
+Riferimento letto in sola lettura: `app/wordpress/client.py`, `app/workers/runner.py`, `app/renderer/render.py` del branch main di vps-ponte. Il client attuale **non è compatibile senza modifiche**: chiama eligibility, invia proof, non invia operation e il renderer inactive produce HTML vuoto/SEO minimo. Il protocollo resta oap-wp-1 con estensione obbligatoria documentata in [api.md](api.md).
 
-Plugin 1.1.0 resta `oap-wp-1` per bundle, endpoint pages e ACK, ma richiede `operation:create|update` e non fornisce più ammissibilità. Il vecchio `WordPressClient.publish()` si ferma con 410 permanente al GET eligibility: comportamento verificato, intenzionale, senza falsi risultati Woo. Non è un aggiornamento trasparente del vecchio ciclo publish.
+## Modifiche obbligatorie prima di usare il ricevitore 1.1
 
-## 1. Inventario e ammissibilità sulla VPS
+1. **Inventario e ammissibilità nella VPS.** Implementare nel livello servizi di vps-ponte un adattatore autorevole WooCommerce (prodotti e varianti, stati e normalizzazione GTIN definiti dalla VPS), con credenziali e gestione degli errori proprie. Non sostituire eligibility con un falso valore costante. Incertezza inventario deve sospendere la decisione sulla VPS. Effettuare il controllo nel flusso di pubblicazione e gestire successive variazioni inventario tramite eventi/riconciliazione nella VPS. Il ricevitore non sopprimerà più automaticamente pagine se appare un prodotto Woo. L'eventuale finestra tra controllo inventario e PUT deve essere risolta dalla VPS con eventi, riconciliazione e una successiva versione inactive: il plugin non offre più un lock atomico sul catalogo Woo.
+2. **`app/wordpress/client.py`, `WordPressClient.publish`.** Rimuovere la GET `gtins/{gtin}/eligibility`, il controllo woocommerce_present/proof e l'iniezione eligibility_proof. Inviare soltanto il payload definitivo autorizzato dalla VPS, con operation obbligatoria. Conservare Bearer HTTPS, timeout, Idempotency-Key hash:version e validazione ACK gtin/hash/version. Non eseguire fallback create/update su errore nel client.
+3. **`app/workers/runner.py`, `Worker.publish` e `Worker.reconcile`.** Prima della decisione usare installed(gtin) (GET pages): ownership absent/version 0 => la VPS può scegliere create; ownership bridge con remote_id oap:<gtin> => update; ownership estranea => fermare. Verificare tipo/coerenza di ownership, remote_id, versione e hash, oltre ai controlli attuali. Se versione/hash remoti coincidono con il documento atteso, riconciliare l'ACK perso senza ripubblicare. Non cambiare versione o documento durante retry; persistere la decisione e la richiesta inviata per il recupero dopo crash. Le precondizioni nel ricevitore gestiscono eventuali corse tra GET e PUT senza upsert. Remote-ahead resta permanente, non azzerare versioni o tombstone.
+4. **`app/renderer/render.py`, `render`.** Produrre anche per inactive l'HTML finale desiderato e SEO completo: title non vuoto, canonical HTTP(S), indexable false e modified_at. Il ricevitore non scrive più “Prodotto non disponibile”, non nasconde offerte e non crea fallback SEO. La rimozione delle offerte, l'eventuale omissione JSON-LD e la scelta canonical competono al renderer VPS. Restituire jsonld null/omesso per disabilitarlo; il flag WordPress JSONLD non decide più. Adeguare `app/renderer/templates/product.html` o aggiungere template inactive nella VPS. HTML conforme all'allowlist: markup non conforme è rifiutato, mai corretto silenziosamente dal ricevitore.
+5. **`app/workers/runner.py`, `Worker.render`.** Includere nel digest tutti i dati che modificano HTML/SEO/stato/slug/redirects/removal_policy, compreso modified_at se cambia. Al medesimo hash deve corrispondere il medesimo documento. Non rigenerare timestamp a parità di hash per un semplice avanzamento cursore. Trasportare la decisione create/update nel payload finale (può essere aggiunta dal worker prima della chiamata, senza alterare il documento). Una disattivazione di identità mai pubblicata e senza slug deve essere risolta nella VPS senza inventare slug nel plugin.
+6. **Redirect e pubblicazione.** In `Worker.apply`/`Worker.render` mantenere e inviare l'elenco completo dei redirect deliberati; un vecchio slug non viene più aggiunto automaticamente dal plugin. La VPS sceglie active/inactive e temporary/gone, autorizza o sospende la pubblicazione e gestisce eventi, retry e riconciliazione. Nessuna logica catalogo va demandata a hook o cron del plugin.
+7. **Errori client.** In `WordPressClient.request` leggere in modo verificato il code WordPress, senza registrare body, token o URL affiliati. Distinguere oap_page_exists/page_absent (riconciliare, poi deliberare nella VPS), remote_ahead, version_conflict/hash_conflict, foreign_owner/foreign_page e slug_conflict. Non ritentare indefinitamente tutti i 409 e non sovrascrivere risorse estranee. Proof expiry/refresh non esistono più.
+8. **Contratto e test VPS.** Aggiornare `docs/wordpress-contract.md` e test client/worker/renderer: nessuna richiesta eligibility, operation obbligatoria, decisione create/update nella VPS, ammissibilità positiva/negativa/indisponibile, collisione Woo successiva => invio inactive dalla VPS, HTML/SEO inactive pronti, nessun duplicato con ACK perso e richieste concorrenti, owner estraneo mai adottato, hash riutilizzato con stato diverso rifiutato, gestione codici 409 e alias rimossi.
 
-Aggiungere un adattatore VPS, per esempio `app/services/woocommerce_inventory.py`, e relativa configurazione in `app/config.py`. Deve ottenere i GTIN autorevoli di prodotti e varianti dalla fonte **effettivamente disponibile** (API/export/DB autorizzato e configurato), normalizzare i formati e decidere l'ammissibilità prima del comando. Non dedurre la fonte o le chiavi meta dal nome del plugin. In caso di dati mancanti, sorgente indisponibile o stato incerto, la VPS deve sospendere il job senza inviare il PUT.
+## Migrazione operativa separata
 
-Nel codice di riferimento non esiste questo adattatore: il solo controllo corrente è la chiamata al ricevitore che ora è ritirata. **La fonte autorevole e la gestione della sua consistenza/race devono quindi essere implementate sulla VPS prima di riabilitare il flusso.** Non sostituire il vecchio endpoint con un stub che restituisce Woo=false e non introdurre un'altra decisione Woo nel plugin.
+Le tabelle non cambiano: nessuna migrazione SQL richiesta. Gli artefatti active esistenti restano leggibili. Gli artefatti inactive legacy non hanno title/canonical completi: prima di un futuro rollout coordinato devono essere rigenerati dalla VPS e reinviati con versione/hash maggiori, oppure l'attivazione va tenuta sospesa. Non generare contenuti di ripiego nel ricevitore. Le vecchie costanti GTIN_ADAPTER_VERIFIED e GTIN_META_KEYS non sono più usate e potranno essere rimosse dalla configurazione in un'attività successiva. Il solo OAP_BRIDGE_WRITES_ENABLED resta una protezione tecnica di manutenzione, disabilitata per default.
 
-Per un GTIN passato successivamente a Woo, la VPS deve arbitrare gli eventi e inviare update inactive/nuovo hash/versione maggiore per l'identità Ponte, se questa è la decisione richiesta. Il ricevitore non sopprime più autonomamente pagine o sitemap e non blocca il comando per inventario. Gestire sulla VPS anche riattivazione e perdita di ammissibilità successiva a un retry.
-
-## 2. Scelta create/update in app/workers/runner.py
-
-In `Worker.publish()`, mantenere il controllo publish_enabled e la verifica dell'hash dell'artefatto prima di usarlo. Dopo il controllo autorevole VPS e prima della scrittura:
-
-1. Chiamare `remote.installed(gtin)`; validare GTIN, versione/hash e ownership.
-2. ownership=absent, version=0/hash vuoto → preparare `operation="create"`.
-3. ownership=bridge → preparare `operation="update"`, solo se la versione locale non è obsoleta.
-4. Owner estraneo, ACK malformato, versione remota maggiore, stessa versione/hash differente → fermare e riconciliare, senza pubblicare.
-5. Stessa versione/hash già installati dopo timeout → recuperare conferma e completare il job; in alternativa ritentare lo stesso comando: il plugin risponde unchanged.
-6. Inviare una copia del bundle con l'operation scelta: `command = {**payload, "operation": operation}`. Operation è metadato di trasporto; non riscrivere l'artefatto verificato né cambiare content_hash per la sola scelta create/update.
-7. Verificare l'ACK esatto prima di aggiornare Publication e chiudere il job, come già avviene.
-
-Conservare la serializzazione per GTIN e l'ordinamento eventi sulla VPS. La decisione può diventare obsoleta tra GET e PUT: il plugin rifiuta atomicamente page_exists/page_absent invece di fare upsert. La VPS deve riconciliare il conflitto e scegliere di nuovo, senza sostituire automaticamente i dati remoti. Nessuna migrazione dello schema DB VPS è obbligatoria per il flusso minimo: la scelta può essere ricalcolata da GET dopo un retry; l'ACK idempotente non dipende da una nuova colonna.
-
-In `Worker.reconcile()` preservare remote-ahead permanente, tombstone e la verifica delle versioni. GET assente resta 200/versione0/hash vuoto. Se serve audit dell'operation, registrarlo sulla VPS senza loggare payload, offerte o token.
-
-## 3. app/wordpress/client.py
-
-In `WordPressClient.publish(payload)`:
-
-- Eliminare GET `gtins/<gtin>/eligibility`, la lettura `woocommerce_present`, la dipendenza da proof e duplicate_check_unconfirmed.
-- Richiedere un comando già deciso dalla VPS con operation create/update; non scegliere l'operazione in WordPress.
-- Fare direttamente PUT `pages/<gtin>` con il comando e `Idempotency-Key=content_hash:version`. Non aggiungere eligibility_proof.
-- Conservare Bearer da configurazione, base HTTPS fissa, timeout, divieto di seguire redirect e verifica di GTIN/version/installed_hash dell'ACK.
-- Estendere `installed()` per validare ownership absent/bridge e la coerenza con versione/hash, non solo il tipo dei tre campi attuali.
-- In `request()` leggere unicamente il code stabile dell'errore (se JSON valido) senza esporre corpo/Authorization nei log. Distinguere page_exists/page_absent da remote_ahead, version_conflict, foreign_owner/foreign_page e slug_conflict: non ritentare indefinitamente ogni 409. 410 sull'eligibility segnala client non migrato, non inventario libero.
-
-Il test locale `tests/http_client.py` usa request()/installed() originali e simula soltanto la preparazione VPS del nuovo comando, per verificare il wire. Non equivale a una modifica del client sul repository vps-ponte.
-
-## 4. Contenuti, SEO e redirect
-
-In `app/renderer/render.py` e template generare l'intero frammento HTML e i metadati finali. Il plugin non riscrive HTML valido e non genera titoli, canonical, schema o messaggi inactive:
-
-- Produrre l'HTML del sottoinsieme accettato in docs/api.md. Se il validatore lo modificherebbe, il ricevitore rifiuta: non usare il plugin come normalizzatore/sanitizzatore editoriale.
-- Generare title/description/canonical e JSON-LD completi; null per non emettere JSON-LD. BRIDGE_JSONLD_ENABLED resta l'unico switch applicativo da cui deriva il campo jsonld; lo switch omonimo WordPress è ritirato.
-- Il ramo inactive attuale restituisce `""` e SEO minimo. È strutturalmente compatibile, ma produce una pagina vuota: se si vuole un messaggio/titolo, produrli **nel renderer VPS**. Rimuovere offerte/schema non desiderati nel bundle inactive e inviare indexable=false. Nessun fallback WordPress li sostituirà.
-- Mantenere modified_at del bundle e aggiornare content_hash/revision per qualsiasi variazione pubblica.
-- `redirects` deve essere lo snapshot completo degli alias da attivare. `Worker.apply()` già accumula gli slug precedenti in Product.redirects: continuare a passarli esplicitamente. Un alias omesso dall'ultimo bundle non fa più 301, anche se la prenotazione tecnica resta per impedirne il riutilizzo.
-- `app/schemas/events.py`/`app/schemas/export.py` restano schemi d'ingresso del catalogo: operation è un comando di dispatch verso WordPress, non un campo da imporre agli eventi sorgente. Se si introduce uno schema outbound, aggiungere operation lì.
-
-## 5. Test e documentazione VPS da aggiornare
-
-Aggiornare `tests/unit/test_components.py` e le sezioni WordPress di `tests/integration/test_pipeline.py`: nessun GET eligibility, operation esplicita, inventario autorevole sulla VPS anche per varianti e indisponibilità, scelta create/update da GET, gestione dei 409, timeout dopo commit con recupero ACK, contenuto/SEO inactive pronto e alias completi. Preservare i test di ACK malformato, versioni e pubblicazione disabilitata.
-
-Aggiornare `docs/wordpress-contract.md`, `docs/architecture.md`, `docs/operations.md` ed esempi di configurazione: rimuovere la garanzia di controllo Woo atomico sul ricevitore, attribuirla al nuovo flusso VPS con la sua fonte autorevole, descrivere operation, 410 legacy, HTML non riscritto e nessuna soppressione locale.
-
-## Attivazione coordinata e rollback
-
-Tenere worker sospesi e OAP_BRIDGE_WRITES_ENABLED=false durante aggiornamento e collaudo. Preparare prima il nuovo flusso VPS senza abilitarlo, validare il nuovo ricevitore in staging e riabilitare solo con un intervento operativo separato. I dati/index/tombstone esistenti restano leggibili senza migrazione; i bundle storici possono non contenere operation e sono comunque renderizzati. Ritornare al plugin 1.0.0 ripristina anche i vecchi controlli Woo/proof e richiede il client corrispondente: non fare rollback di un componente lasciando l'altro in invio.
+Non distribuire il vecchio ZIP 1.0.0 presente nella storia del repository: contiene il vecchio controllo Woo. La PR rimuove quel pacchetto obsoleto; un nuovo pacchetto dovrà essere costruito dai sorgenti revisionati, in un'attività di rilascio separata. Non abilitare pubblicazione per provare questa migrazione; usare soltanto ambienti isolati.

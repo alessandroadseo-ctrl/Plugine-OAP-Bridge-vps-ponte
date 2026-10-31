@@ -23,3 +23,4 @@ add_filter('rest_post_dispatch', static function ($response, $server, $request) 
     if (str_starts_with($request->get_route(), '/oap-bridge/v1/')) { $response->header('Cache-Control', 'no-store, private'); }
     return $response;
 }, 10, 3);
+

@@ -9,9 +9,8 @@ define('OAP_BRIDGE_TOKEN',str_repeat('local-test-',6));
 define('OAP_BRIDGE_WRITES_ENABLED',true); define('OAP_BRIDGE_PUBLIC_BASE','https://receiver.test/prodotti-ponte');
 define('OAP_BRIDGE_ARTIFACT_DIR','/oap-artifacts');
 
-// Retired setting: deliberately false to test that received JSON-LD is still rendered.
-define('OAP_BRIDGE_JSONLD_ENABLED',false);
 // Simulates trusted TLS termination in the isolated test harness only.
 $_SERVER['HTTPS']='on';
 if (!defined('ABSPATH')) define('ABSPATH',__DIR__.'/');
 require_once ABSPATH.'wp-settings.php';
+

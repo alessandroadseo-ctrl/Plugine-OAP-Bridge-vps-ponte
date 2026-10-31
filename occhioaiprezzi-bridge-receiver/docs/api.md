@@ -1,87 +1,72 @@
-# API — ricevitore esclusivo VPS, plugin 1.1.0
+# API privata OAP Bridge Receiver 1.1
 
-Il plugin esegue comandi autenticati della VPS Ponte. Non interroga WooCommerce, non decide l'ammissibilità, non sceglie l'operazione e non genera contenuti o SEO. La VPS è responsabile di queste decisioni, dei dati di inventario autorevoli e della gestione eventi.
+Il ricevitore salva e serve documenti già decisi dalla VPS Ponte. Non consulta WooCommerce, non verifica l'ammissibilità commerciale dei GTIN, non genera HTML/SEO, non gestisce eventi di catalogo e non decide se pubblicare.
+
+Base HTTPS `/wp-json/oap-bridge/v1/`; `Authorization: Bearer <segreto>` obbligatorio. Cookie/nonce non sostituiscono il Bearer. Risposte private ed errori: `Cache-Control: no-store, private`. Limite richiesta 1 MiB. Scritture disabilitate per default (`OAP_BRIDGE_WRITES_ENABLED` deve essere esattamente true).
 
 ## Compatibilità e migrazione
 
-Base HTTPS invariata `/wp-json/oap-bridge/v1/`; `protocol:"oap-wp-1"`, GTIN, slug, version, content_hash, html, seo, state, redirects, removal_policy e ACK rimangono invariati. **Il flusso di pubblicazione del client precedente NON è compatibile senza modifiche**:
-
-- `GET gtins/{gtin}/eligibility` è una rotta privata ritirata: **410 `oap_eligibility_moved_to_vps`**, senza proof o risultati Woo sintetici. Non autorizza alcuna scrittura.
-- PUT richiede il nuovo campo **`operation:"create"|"update"`**, scelto dalla VPS.
-- `eligibility_proof` non è più richiesto né verificato. Un valore legacy stringa ≤512 caratteri o null viene tollerato, ignorato e non salvato. Non ha valore di autorizzazione.
-
-Non abilitare pubblicazione finché non sono stati applicati gli interventi in [ponte-changes.md](ponte-changes.md). La stringa del protocollo resta invariata per conservare i bundle e l'ACK; questa estensione del comando deve essere coordinata fra i due componenti.
-
-## Autenticazione e limiti
-
-`Authorization: Bearer <segreto>` su tutte le rotte; solo HTTPS e confronto hash_equals. Nessuna alternativa cookie/nonce. Token fuori dal sorgente, almeno 32 caratteri. Tutte le risposte API, inclusi errori, sono no-store/private. Scritture disabilitate per default (`OAP_BRIDGE_WRITES_ENABLED=false`), come interruttore tecnico di manutenzione, non come motore di pubblicazione.
-
-PUT: `Content-Type: application/json`; `Idempotency-Key: <content_hash>:<version>`; massimo 1 MiB. GTIN stringa di 14 cifre; slug ASCII `[a-z0-9]+(?:-[a-z0-9]+)*`, massimo 180 caratteri; al massimo 500 alias. Impostare anche il limite body sul proxy, prima del caricamento WordPress.
+Restano `protocol: oap-wp-1`, GET/PUT pages, GTIN a 14 cifre, ACK, versioni, hash e Idempotency-Key. Cambiamenti intenzionalmente incompatibili: il PUT richiede `operation`; GET `gtins/{gtin}/eligibility` è rimosso (404), non emette attestazioni di inventario. `eligibility_proof` eventualmente presente viene ignorata e non salvata. Nessun fallback upsert. Il vecchio client Ponte deve essere aggiornato prima di usare questa versione: vedere [ponte-changes.md](ponte-changes.md).
 
 ## GET pages/{gtin}
 
-Riporta lo stato tecnico; la scelta successiva compete alla VPS. Assente è 200, non 404:
+Assente: 200 con `{"gtin":"00012345678905","version":0,"installed_hash":"","remote_id":"","ownership":"absent","operation":"absent"}`.
 
-```json
-{"gtin":"00012345678905","version":0,"installed_hash":"","remote_id":"","ownership":"absent","operation":"absent"}
-```
-
-Gestita: versione massima (anche inactive), installed_hash, remote_id `oap:<gtin>`, ownership `bridge`, operation `managed`. Owner estraneo nell'indice: 409 `oap_foreign_owner`. Questo endpoint non inventaria i prodotti Woo e non adotta post esistenti. Una collisione con un post nativo viene rifiutata durante PUT.
+Gestita: versione massima installata (anche inattiva), hash, remote_id stabile `oap:<gtin>`, ownership `bridge`, operation `managed`. Proprietario estraneo nell'indice: 409 `oap_foreign_owner`. GET non adotta né modifica post WordPress.
 
 ## PUT pages/{gtin}
 
-Campi obbligatori: `protocol`, `operation`, `gtin`, `slug`, `version`, `content_hash`, `html`, `seo`, `state`, `redirects`, `removal_policy`.
+`Content-Type: application/json`, `Idempotency-Key: <content_hash>:<version>`.
+
+| Campo richiesto | Contratto |
+| --- | --- |
+| protocol | `oap-wp-1` |
+| operation | `create` oppure `update`, scelto dalla VPS |
+| gtin | stringa di 14 cifre coincidente con path; solo validazione strutturale, senza checksum/ammissibilità |
+| slug | slug ASCII `[a-z0-9]+(?:-[a-z0-9]+)*`, massimo 180 caratteri |
+| version | intero positivo entro PHP_INT_MAX |
+| content_hash | 64 caratteri hex minuscoli, digest opaco del Ponte |
+| html | frammento HTML finale pronto, anche per inactive; non viene rigenerato o filtrato in scrittura |
+| seo | oggetto finale descritto sotto |
+| state | `active` / `inactive` |
+| redirects | elenco completo degli alias da redirigere, massimo 500 slug, nessun URL |
+| removal_policy | `temporary` / `gone` |
+
+SEO: `title` stringa non vuota, `canonical` URL HTTP(S) assoluto sicuro, `indexable` booleano e `modified_at` epoch intero >=0 obbligatori per **entrambi** gli stati. `inactive` richiede `indexable:false`. Il canonical è quello ricevuto, anche se diverso dall'URL locale; non viene ricostruito. Opzionali: description, h1, brand, image, category (stringhe <=4096 byte), gtin coincidente con path, jsonld oggetto o null. Image e URL JSON-LD sono validati. JSON-LD viene serializzato con escape sicuri, senza deduzioni o generazione schema. Il vecchio flag locale `OAP_BRIDGE_JSONLD_ENABLED` non condiziona più il rendering: l'omissione/null di jsonld si decide sulla VPS.
+
+HTML: la validazione tecnica rifiuta PHP, script, handler on*, URL pericolosi e markup fuori allowlist. Se `wp_kses` cambierebbe il frammento, il PUT fallisce con 400 `oap_unsafe_html`: non viene salvata una versione riscritta. Allowlist: article, section, div, span, p, h1/h2/h3, strong, em, ul/ol/li, br, table/caption/thead/tbody/tr/th/td con class; a con href/rel/title; img con src/alt/loading/width/height. URL assoluti HTTP(S), nessuna credenziale. La VPS deve produrre HTML conforme.
+
+### Precondizioni e retry
+
+Sotto lock SQL, il ricevitore verifica proprietà, versione, GTIN unico, slug e pagine native estranee. `create` su identità esistente: 409 `oap_page_exists`; `update` su assente: 409 `oap_page_absent`. Non sceglie un'operazione alternativa. La persistenza usa INSERT per create e UPDATE vincolato al proprietario per update, senza upsert sull'indice pagine.
+
+Eccezione per recuperare un ACK perso: stessa versione, stesso hash e stesso documento restituiscono `unchanged`, anche per un retry create. Stessa versione/hash diverso: `oap_version_conflict`; versione inferiore: `oap_remote_ahead`. Versione maggiore/hash uguale richiede `update` e documento identico: avanza solo il cursore (`cursor_advanced`). Hash riutilizzato con HTML, SEO, stato, slug o alias diversi: `oap_hash_conflict`. Per il confronto del documento si escludono solo operation, version, content_hash ed eligibility_proof; ordine delle chiavi JSON irrilevante. La VPS deve cambiare hash per ogni cambiamento del documento, incluso modified_at.
+
+Creazione: 201; aggiornamento/retry/cursore: 200. ACK esempio:
 
 ```json
-{
-  "protocol":"oap-wp-1",
-  "operation":"create",
-  "gtin":"00012345678905",
-  "slug":"prodotto-esempio",
-  "version":1,
-  "content_hash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-  "html":"<article><h1>Titolo pronto dalla VPS</h1></article>",
-  "seo":{"title":"SEO pronto dalla VPS","description":"Descrizione pronta","canonical":"https://receiver.test/prodotti-ponte/prodotto-esempio/","indexable":true,"modified_at":1700000000,"jsonld":null},
-  "state":"active",
-  "redirects":[],
-  "removal_policy":"temporary"
-}
+{"gtin":"00012345678905","version":2,"installed_hash":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","remote_id":"oap:00012345678905","ownership":"bridge","operation":"updated"}
 ```
 
-`create`: deve mancare l'identità. `update`: deve esistere un'identità appartenente al Ponte. Nessuna conversione automatica fra le due operazioni. Il controllo è dentro la stessa transazione/lock della scrittura, quindi una decisione remota divenuta obsoleta viene rifiutata invece di sovrascrivere o duplicare.
+Le tabelle dedicate hanno GTIN e slug come chiavi primarie. La serializzazione delle scritture e il lock READ sui post proteggono da collisioni native concorrenti; non viene letto/bloccato postmeta. Non vengono mai creati o aggiornati post/prodotti WordPress. Alias storici restano riservati al GTIN anche dopo la rimozione dall'elenco redirects.
 
-ACK 201 per create confermata; 200 per update, retry e avanzamento cursore:
+## Rendering e sitemap
 
-```json
-{"gtin":"00012345678905","version":1,"installed_hash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","remote_id":"oap:00012345678905","ownership":"bridge","operation":"created"}
-```
+Il documento usa HTML, title, description, canonical e jsonld ricevuti, anche se inactive. Nessun messaggio o offerta viene generato localmente. `active`: 200; `inactive/temporary`: 200 noindex; `inactive/gone`: 410 noindex, anche sugli alias esplicitamente ricevuti. Un alias in redirects produce 301 diretto all'URL dello slug corrente, salvo gone (410). Un vecchio slug omesso dall'elenco resta riservato ma non redirige più (404 normale WP). Il semplice cambio slug non aggiunge redirect: deve inviarlo la VPS. La normalizzazione tecnica dello slash resta 301.
 
-`operation` nell'ACK: created/updated/unchanged/cursor_advanced. La proprietà viene sempre verificata prima di confermare un retry. Stessa versione/hash già installati → unchanged anche se il comando ritentato è create dopo un ACK perso (o la VPS ha riconciliato verso update). Nessuna scrittura o invalidazione. Stessa versione/hash diverso → 409 version_conflict. Versione minore → 409 remote_ahead. Successivamente si controlla la precondizione create/update: create su esistente → 409 page_exists, update su assente → 409 page_absent. Versione maggiore/hash uguale → solo cursore, documento pubblico invariato. **La VPS deve cambiare hash per qualunque cambiamento pubblico**, inclusi HTML, SEO, stato o redirect.
+Sitemap: solo righe active e indexable, URL canonical e modified_at ricevuti. Nessuna consultazione WooCommerce in lettura, sitemap o scrittura. Le pagine restano nello stato ricevuto fino al prossimo PUT della VPS. Il wrapper HTML e gli escape degli attributi sono tecnici; non vengono eseguiti shortcode, wp_head o the_content.
 
-## Contenuto, SEO, stati e redirect
+## Errori
 
-HTML è un frammento già pronto, conservato byte per byte dopo validazione. La allowlist include article/section/div/span/p/h1–h3/strong/em/ul/ol/li/br/table/caption/thead/tbody/tr/th/td (class), a (href/rel/title) e img (src/alt/loading/width/height). Se wp_kses lo modificherebbe, il payload viene **rifiutato**, non riscritto. Script/PHP/iframe/form/SVG/event handler e URL non HTTP(S) non sono consentiti. La VPS deve produrre questo sottoinsieme HTML; markup innocuo ma non conforme può ricevere 400. Nessun the_content, shortcode o PHP del payload viene eseguito.
+Formato WordPress `{code,message,data:{status}}`, messaggio generico senza SQL/segreti.
 
-SEO: oggetto, indexable booleano e modified_at epoch intero >=0; GTIN eventuale coincidente col path. Active richiede title e canonical non vuoti. Canonical è l'URL HTTP(S) sicuro **ricevuto**, può differire dalla rotta pubblica: non viene rigenerato o usato per redirect. Title/description/h1/brand/image/category sono conservati, mai dedotti dal corpo. JSON-LD oggetto opzionale, serializzato con escaping HTML/script/Unicode, senza generare Product/Offer. Campi omessi non vengono riempiti; un corpo vuoto resta vuoto. Il vecchio switch locale OAP_BRIDGE_JSONLD_ENABLED è ignorato: la VPS invia oggetto o null.
-
-Inactive richiede indexable=false come invariante strutturale del contratto. `temporary` applica HTTP 200, `gone` applica 410; vengono resi HTML e SEO ricevuti, senza messaggio locale o contenuto di fallback. Per non mostrare offerte la VPS deve rimuoverle dal bundle: il ricevitore non interpreta né rigenera le offerte. Il vecchio renderer inactive con HTML vuoto e SEO minimo resta valido, ma produrrà un corpo vuoto.
-
-Sitemap nativa WordPress: soltanto state=active/indexable=true, loc dal canonical SEO ricevuto e lastmod dal modified_at ricevuto. Nessun controllo inventario per visita o sitemap. In presenza di WooCommerce, in sua assenza o dopo modifiche dei suoi metadati, l'esito rimane quello dell'ultimo comando VPS.
-
-`redirects` è l'elenco **completo** degli alias attualmente richiesti, non un delta. Soltanto gli alias ricevuti fanno 301 diretto a base pubblica configurata + slug corrente, su host locale. Nessun redirect a canonical esterni. Un cambio slug non aggiunge automaticamente il precedente all'elenco. Le vecchie prenotazioni restano nel registro globale per impedire appropriazioni da altri GTIN; alias non più richiesti rispondono 404. Gone applica 410 alla rotta corrente e agli alias ancora richiesti. URL o slug di un altro GTIN vengono rifiutati. La normalizzazione tecnica della slash finale è invariata.
-
-## Errori stabili
-
-Formato WordPress `{code,message,data:{status}}`, messaggio generico senza SQL/token/stack trace.
-
-| HTTP | Codici principali |
+| HTTP | Codici |
 | --- | --- |
 | 400 | oap_missing_field, oap_invalid_payload, oap_invalid_gtin, oap_invalid_slug, oap_invalid_json, oap_invalid_idempotency_key, oap_unsafe_html, oap_invalid_url, oap_invalid_seo, oap_invalid_jsonld |
 | 401 | oap_unauthorized |
 | 403 | oap_https_required |
-| 409 | oap_page_exists, oap_page_absent, oap_remote_ahead, oap_version_conflict, oap_foreign_owner, oap_foreign_page, oap_slug_conflict |
-| 410 | oap_eligibility_moved_to_vps (solo rotta eligibility ritirata) |
+| 409 | oap_page_exists, oap_page_absent, oap_remote_ahead, oap_version_conflict, oap_hash_conflict, oap_foreign_owner, oap_foreign_page, oap_slug_conflict |
 | 413 / 415 | oap_request_too_large / oap_json_required |
 | 503 | oap_writes_disabled, oap_not_configured, oap_database_unsupported, oap_database_unavailable, oap_transaction_in_progress, oap_storage_unavailable, oap_storage_not_private, oap_artifact_integrity, oap_invalid_public_base, oap_unavailable |
 
-Non esistono più rifiuti oap_woocommerce_present/oap_inventory_unavailable/oap_invalid_proof. I 409 sono conflitti tecnici da riconciliare sulla VPS, non decisioni editoriali del ricevitore.
+Non vengono più emessi oap_woocommerce_present, oap_inventory_unavailable o errori proof. Un 409 richiede riconciliazione sulla VPS, mai conversione automatica dell'operazione nel plugin.

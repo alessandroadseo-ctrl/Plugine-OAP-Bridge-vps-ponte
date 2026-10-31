@@ -16,7 +16,7 @@ final class OAP_Auth {
             if (strlen((string)$r->get_body()) > 1048576 || (int) $r->get_header('content-length') > 1048576) {
                 throw new OAP_Failure('oap_request_too_large', 413);
             }
-            return true; // Il bearer dedicato autorizza solo le rotte private del ricevitore.
+            return true; // Il bearer dedicato autorizza solo le rotte private.
         } catch (Throwable $e) { return OAP_Support::error($e); }
     }
 }

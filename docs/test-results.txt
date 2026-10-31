@@ -1,67 +1,63 @@
-No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/concurrent-worker.php
-No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/integration.php
-No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/wp-config.php
 No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/occhioaiprezzi-bridge-receiver.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-seo.php
 No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-rest-api.php
 No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-auth.php
 No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-storage.php
-No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-product-pages.php
 No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-sitemap.php
 No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-support.php
-No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-seo.php
-PASS: GET reports absence without choosing an operation
-PASS: retired eligibility never fabricates permission
-PASS: missing VPS operation rejected
-PASS: automatic upsert is not allowed
-PASS: update cannot create an absent page
-PASS: explicit create without eligibility proof
-PASS: legacy proof is inert and never gates a VPS command
-PASS: HTML bytes and SEO values stored unchanged
-PASS: create retry after lost ACK is idempotent
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-product-pages.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/wp-config.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/concurrent-worker.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/integration.php
+PASS: real WooCommerce loaded
+PASS: absent page reconciliation
+PASS: new product creation
+PASS: identical retry after lost ACK
 PASS: retry preserves artifact and lastmod
+PASS: active HTML stored byte for byte
+PASS: HTML is rejected rather than rewritten
+PASS: legacy proof cannot affect authorization
+PASS: JSON key order does not break retry
 PASS: same version different hash
-PASS: create cannot overwrite an existing identity
-PASS: explicit update keeps the same remote identity
-PASS: canonical is not regenerated from slug
+PASS: update same remote identity
 PASS: obsolete version
-PASS: same hash advances only version cursor
+PASS: opaque hash cannot hide changed body
+PASS: cursor only no public change
+PASS: cursor cannot hide content change
 PASS: foreign owner rejected
 PASS: wrong token
 PASS: missing token
 PASS: HTTP rejected
+PASS: eligibility endpoint removed
+PASS: VPS operation required
+PASS: update never creates
+PASS: create never updates
 PASS: script HTML rejected
 PASS: event handler rejected
-PASS: unsafe markup is rejected instead of rewritten
 PASS: unsafe URL rejected
-PASS: unsafe SEO URL rejected
+PASS: unsafe canonical rejected
 PASS: open redirect rejected
 PASS: request size limit
 PASS: native page ownership protected
-PASS: global historical alias cannot be taken by another GTIN
-PASS: sitemap uses received canonical and bundle lastmod
-PASS: inactive applies the content received from VPS
-PASS: inactive state excluded from sitemap
-PASS: contradictory inactive/indexable payload rejected structurally
-PASS: VPS controls indexable even for active pages
-PASS: Woo GTIN cannot veto VPS update or sitemap
-PASS: Woo variation cannot veto VPS create
-PASS: receiver does not mutate Woo metadata
+PASS: native content remains unchanged
+PASS: global historical alias protected
+PASS: VPS create applied despite Woo GTIN
+PASS: VPS deactivation applied despite Woo GTIN
+PASS: inactive HTML retained exactly
+PASS: sitemap canonical and bundle lastmod
+PASS: inactive temporary tombstone
+PASS: inactive excluded from sitemap
+PASS: reactivation greater version
+PASS: later Woo GTIN cannot override VPS state
+PASS: Woo removal does not decide state
 PASS: JSON-LD script boundary escaped
 PASS: one identity per GTIN
-Success: Receiver-only integration suite complete
-PASS: receiver writes successfully without WooCommerce loaded
-PASS: six concurrent put commands, one created and five confirmations
-PASS: six concurrent update commands, one updated and five confirmations
-PASS: Woo metadata writer proceeds during receiver lock window
-PASS: legacy publish stops at retired eligibility with no writes; GET reconciliation remains compatible
-PASS: VPS-selected create, direct authenticated PUT and lost ACK retry without eligibility
-PASS: HTML, title, canonical and JSON-LD come from VPS without SEO regeneration
-PASS: sitemap uses received SEO canonical and modified_at
-PASS: later Woo inventory change cannot alter rendering or sitemap
-PASS: public rendering and sitemap work with WooCommerce deactivated
-PASS: slug change does not invent an unrequested redirect
-PASS: only received alias redirects, fixed local target even with a different SEO canonical
-PASS: temporary applies 200/noindex and VPS-provided inactive content without local fallback
-PASS: received gone policy applies 410 on canonical route and explicit aliases
-PASS: VPS controls reactivation and noindex independently of Woo inventory
-PASS: receiver does not invent missing body content; API remains private and uncached
+Success: Integration suite complete
+PASS: six concurrent identical writes, one creation and five confirmations
+PASS: competing create requests cannot overwrite one GTIN
+PASS: concurrent GTINs cannot claim the same slug
+PASS: receiver creates without WooCommerce loaded
+PASS: HTTP create and lost-ACK retry reconciliation
+PASS: exact VPS HTML and SEO, canonical is not regenerated
+PASS: inactive renders VPS document, no generated tombstone
+PASS: supplied gone state, removed aliases no longer redirect, private API

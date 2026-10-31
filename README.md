@@ -1,15 +1,13 @@
 # OcchioAiPrezzi Bridge Receiver
 
-Plugin WordPress **esclusivamente ricevente** del servizio VPS Ponte. WooCommerce, ammissibilità GTIN, scelta create/update, contenuti/SEO, eventi e decisioni di pubblicazione appartengono alla VPS. Il plugin conserva autenticazione, proprietà, unicità, versioni, idempotenza e serializzazione delle scritture.
+Plugin WordPress ricevente del servizio VPS Ponte. La VPS decide ammissibilità WooCommerce/GTIN, creazione o aggiornamento, contenuti, SEO, eventi e pubblicazione; il plugin valida tecnicamente, salva e rende HTML e metadati già pronti, stati e redirect ricevuti.
 
-## Versione 1.1.0
+Mantiene Bearer HTTPS, proprietà delle pagine, GTIN unico, idempotenza, versioni e serializzazione delle scritture. Non crea post o prodotti WooCommerce. Scritture disabilitate per default.
 
-Il nuovo PUT richiede `operation:create|update`; il vecchio endpoint eligibility risponde 410 e non produce risultati Woo/proof. HTML/SEO pronti vengono salvati e resi senza generazione o riscrittura; stati e alias ricevuti vengono applicati. **Il client publish del Ponte deve essere migrato prima dell'uso.**
+- [API e variazioni oap-wp-1](docs/api.md)
+- [Interventi obbligatori nel repository vps-ponte, non applicati](docs/ponte-changes.md)
+- [Configurazione](occhioaiprezzi-bridge-receiver/README.md)
+- [Test isolati](occhioaiprezzi-bridge-receiver/tests/README.md)
+- [Verifiche e limiti](docs/validation.md)
 
-- [ZIP installabile](dist/occhioaiprezzi-bridge-receiver-1.1.0.zip), sorgenti e test inclusi; [checksum](dist/SHA256SUMS.txt).
-- [Configurazione senza pubblicazione, aggiornamento e rollback](occhioaiprezzi-bridge-receiver/README.md).
-- [API e cambiamenti di contratto](docs/api.md).
-- [Interventi esatti richiesti sulla VPS, non applicati](docs/ponte-changes.md).
-- [Verifiche](docs/validation.md) e [test isolati](occhioaiprezzi-bridge-receiver/tests/README.md).
-
-Scritture disabilitate per default. Nessuna installazione sul sito reale, invio prodotti, modifica VPS o abilitazione worker.
+Nessuna installazione sul sito reale o modifica alla VPS. Nessun flag operativo di pubblicazione abilitato.
