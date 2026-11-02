@@ -6,3 +6,5 @@ docker exec oap-receiver-php wp --allow-root eval-file wp-content/plugins/occhio
 python3 "$here/concurrency.py"
 python3 "$here/http_client.py"
 docker exec oap-receiver-php wp --allow-root eval-file wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/admin.php
+
+bash "$here/token-option.sh"
