@@ -25,3 +25,11 @@ Escludere il namespace pubblico dalla cache di reverse proxy/CDN in un eventuale
 Leggere [api.md](docs/api.md) e [ponte-changes.md](docs/ponte-changes.md): il vecchio client che chiama eligibility deve essere aggiornato prima di questo ricevitore. Gli inactive legacy devono essere rigenerati dalla VPS con SEO completo prima di un rollout coordinato. Non usare il vecchio archivio 1.0.0 della storia Git.
 
 In una futura manutenzione autorizzata, disabilitare prima le scritture e fermare il mittente; backup coerente di indice, registro slug e artefatti. Non eliminare tabelle/versioni/tombstone per forzare un retry. Disattivare il plugin rimuove le sue rotte ma non i dati; un rollback al vecchio contratto richiede anche coordinamento del client e ripristino dei dati/configurazioni compatibili. Nessun rollback o rollout viene eseguito da questa attività.
+
+## Pannello prodotti
+
+In **OcchioAiPrezzi Bridge → Prodotti**, gli utenti con `manage_options` possono consultare le pagine del ricevitore (20 per pagina), cercare titolo o GTIN e aprire il dettaglio. Non sono disponibili operazioni di scrittura. Titolo: `seo.h1`, in alternativa `seo.title` e infine GTIN. Stato, versione corrente e ultimo aggiornamento provengono dall'indice esistente; la data è quella dichiarata dalla VPS (`modified_at`), visualizzata nel fuso WordPress, non una nuova data locale di ricezione.
+
+I link pubblici usano la base pubblica configurata e lo slug corrente, come il renderer; anche le pagine disattivate hanno il link (possono rispondere 410 secondo la politica VPS). Il canonical SEO ricevuto resta un metadato distinto. L'anteprima HTML usa KSES, iframe sandbox e CSP senza risorse esterne; immagini e collegamenti possono quindi non essere disponibili nell'anteprima.
+
+Nessuna nuova tabella, opzione persistente o copia in `wp_posts`. Senza ricerca vengono letti solo gli artefatti della pagina corrente; la ricerca consulta gli artefatti in batch di 100, con memoria limitata alla pagina richiesta. Il costo della ricerca cresce con il catalogo perché il titolo non è indicizzato nell'archivio originale. Gli artefatti mancanti/non integri non bloccano la lista: compare un avviso e il GTIN sostituisce il titolo.
