@@ -4,6 +4,36 @@ final class OAP_SEO {
     public static function public_row(array $row): bool {
         return $row['owner'] === 'oap-wp-1' && $row['state'] === 'active';
     }
+    private static bool $bridge_view = false;
+    private static array $bridge_seo = [];
+    private static bool $bridge_indexable = false;
+
+    public static function bridge_title($title) {
+        return self::$bridge_view ? (self::$bridge_seo['title'] ?? $title) : $title;
+    }
+
+    public static function bridge_robots($robots) {
+        if (!self::$bridge_view) { return $robots; }
+        if (!self::$bridge_indexable) { $robots['noindex'] = true; $robots['nofollow'] = true; }
+        return $robots;
+    }
+
+    public static function bridge_head(): void {
+        if (!self::$bridge_view) { return; }
+        $seo = self::$bridge_seo;
+        echo '<meta name="description" content="' . esc_attr($seo['description'] ?? '') . '">';
+        echo '<link rel="canonical" href="' . esc_url($seo['canonical']) . '">';
+        if (!empty($seo['jsonld'])) {
+            echo '<script type="application/ld+json">' . OAP_Support::json($seo['jsonld']) . '</script>';
+        }
+    }
+
+    public static function bridge_assets(): void {
+        if (self::$bridge_view) {
+            wp_enqueue_style('oap-bridge-products', plugins_url('../assets/oap-1.css', __FILE__), [], '1.2.0');
+        }
+    }
+
     public static function serve(): void {
         // An invalid bridge configuration must never turn unrelated WP pages into 503s.
         $candidate = wp_parse_url((string)OAP_Support::cfg('OAP_BRIDGE_PUBLIC_BASE', home_url('/prodotti-ponte')), PHP_URL_PATH);
@@ -33,25 +63,30 @@ final class OAP_SEO {
             status_header($gone ? 410 : 200);
             nocache_headers(); // Escludere anche reverse proxy/CDN dalla cache di queste rotte.
             header('Content-Type: text/html; charset=UTF-8');
-            header("Content-Security-Policy: default-src 'none'; img-src https: http:; style-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
+            // Theme CSS, fonts, scripts and navigation are loaded through WordPress.
+            // Do not apply the former standalone CSP to theme output.
             header('X-Content-Type-Options: nosniff');
             $indexable = $active && (bool)$row['indexable'];
             header('X-Robots-Tag: ' . ($indexable ? 'index, follow' : 'noindex, nofollow'));
             if (($_SERVER['REQUEST_METHOD'] ?? '') === 'HEAD') { exit; }
-            // Documento nativo autonomo: non esegue wp_head/the_content/shortcode;
-            // nessuna duplicazione di canonical o schema da tema/plugin SEO.
-            $seo = $bundle['seo'];
-            echo '<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">';
-            echo '<title>' . esc_html($seo['title']) . '</title>';
-            echo '<meta name="robots" content="' . ($indexable ? 'index,follow' : 'noindex,nofollow') . '">';
-            echo '<meta name="description" content="' . esc_attr($seo['description'] ?? '') . '">';
-            echo '<link rel="canonical" href="' . esc_url($seo['canonical']) . '">';
-            if (!empty($seo['jsonld'])) {
-                echo '<script type="application/ld+json">' . OAP_Support::json($seo['jsonld']) . '</script>';
-            }
-            echo '<link rel="stylesheet" href="' . esc_url(plugins_url('../assets/oap-1.css', __FILE__)) . '"></head><body><main>';
+            self::$bridge_view = true;
+            self::$bridge_seo = $bundle['seo'];
+            self::$bridge_indexable = $indexable;
+            // We are not in a normal post query: don't let an unrelated page title leak.
+            add_filter('pre_get_document_title', [__CLASS__, 'bridge_title'], PHP_INT_MAX);
+            add_filter('wp_robots', [__CLASS__, 'bridge_robots'], PHP_INT_MAX);
+            add_action('wp_head', [__CLASS__, 'bridge_head'], 1);
+            add_action('wp_enqueue_scripts', [__CLASS__, 'bridge_assets'], 20);
+            // Avoid WordPress core's canonical for its unrelated main query.
+            remove_action('wp_head', 'rel_canonical');
+            // The theme provides header/footer and wp_head/wp_footer; VPS remains
+            // the exclusive source of the product fragment and offer data.
+            get_header();
+            echo '<main class="oap-bridge-page"><div class="oap-bridge-container">';
             echo $bundle['html'];
-            echo '</main></body></html>'; exit;
+            echo '</div></main>';
+            get_footer();
+            exit;
         } catch (OAP_Failure $e) {
             // Malformed/unrecognized public paths stay in WP's normal 404 handling.
             if ($e->status < 500) { return; }
