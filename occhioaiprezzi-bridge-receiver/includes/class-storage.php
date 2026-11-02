@@ -79,7 +79,25 @@ final class OAP_Storage {
         }
     }
     public static function directory(): string {
-        $path = realpath((string)OAP_Support::cfg('OAP_BRIDGE_ARTIFACT_DIR', ''));
+        $configured = (string)OAP_Support::cfg('OAP_BRIDGE_ARTIFACT_DIR', '');
+        $path = $configured !== '' ? realpath($configured) : false;
+        // On hosts without an explicit setting, try a sibling of WordPress,
+        // never a directory inside the web/document root.
+        if (!$path) {
+            $parent = dirname(realpath(ABSPATH) ?: ABSPATH);
+            $candidate = $parent . DIRECTORY_SEPARATOR . 'oap-bridge-private';
+            $webRoot = realpath(ABSPATH);
+            $docRoot = realpath($_SERVER['DOCUMENT_ROOT'] ?? ABSPATH);
+            $safe = true;
+            foreach (array_filter([$webRoot, $docRoot]) as $root) {
+                if ($candidate === $root || str_starts_with($candidate, $root . DIRECTORY_SEPARATOR)) {
+                    $safe = false;
+                }
+            }
+            if ($safe && (is_dir($candidate) || @mkdir($candidate, 0700, true))) {
+                $path = realpath($candidate);
+            }
+        }
         $web = realpath(ABSPATH);
         $document = realpath($_SERVER['DOCUMENT_ROOT'] ?? ABSPATH);
         if (!$path || !is_dir($path) || !is_writable($path)) { throw new OAP_Failure('oap_storage_unavailable', 503); }
