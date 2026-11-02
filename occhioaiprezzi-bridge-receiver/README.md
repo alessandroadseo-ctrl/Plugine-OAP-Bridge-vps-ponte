@@ -1,4 +1,4 @@
-# OAP Bridge Receiver 1.1
+# OAP Bridge Receiver 1.1.1
 
 Ricevitore WordPress di documenti finali della VPS Ponte. Requisiti: WordPress >=6.6, PHP >=8.1 64 bit con mysqli, MySQL/MariaDB con tabelle dedicate InnoDB e LOCK TABLES, filesystem POSIX locale con fsync e rename atomico.
 
@@ -33,3 +33,7 @@ In **OcchioAiPrezzi Bridge → Prodotti**, gli utenti con `manage_options` posso
 I link pubblici usano la base pubblica configurata e lo slug corrente, come il renderer; anche le pagine disattivate hanno il link (possono rispondere 410 secondo la politica VPS). Il canonical SEO ricevuto resta un metadato distinto. L'anteprima HTML usa KSES, iframe sandbox e CSP senza risorse esterne; immagini e collegamenti possono quindi non essere disponibili nell'anteprima.
 
 Nessuna nuova tabella, opzione persistente o copia in `wp_posts`. Senza ricerca vengono letti solo gli artefatti della pagina corrente; la ricerca consulta gli artefatti in batch di 100, con memoria limitata alla pagina richiesta. Il costo della ricerca cresce con il catalogo perché il titolo non è indicizzato nell'archivio originale. Gli artefatti mancanti/non integri non bloccano la lista: compare un avviso e il GTIN sostituisce il titolo.
+
+## Collegamento e token amministrativo (1.1.1)
+
+Aprire **OcchioAiPrezzi Bridge → Impostazioni** per salvare un token dedicato da almeno 32 caratteri senza spazi. Il pannello conserva solo SHA-256 e non mostra il valore salvato. La costante OAP_BRIDGE_TOKEN, se definita, mantiene la precedenza. La pagina mostra la base REST effettiva; non abilita scritture. Vedere `docs/wordpress-connection.md` nel repository per la procedura completa. Le offerte con availability unknown sono preservate senza generare disponibilità o schema.

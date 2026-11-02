@@ -9,6 +9,36 @@ final class OAP_Admin {
     public static function register(): void {
         add_menu_page('OcchioAiPrezzi Bridge', 'OcchioAiPrezzi Bridge', 'manage_options', self::PAGE, [self::class, 'render'], 'dashicons-products');
         add_submenu_page(self::PAGE, 'Prodotti', 'Prodotti', 'manage_options', self::PAGE, [self::class, 'render']);
+        add_submenu_page(self::PAGE, 'Impostazioni', 'Impostazioni', 'manage_options', 'oap-bridge-settings', [self::class, 'settings']);
+    }
+
+    public static function settings(): void {
+        if (!current_user_can('manage_options')) { wp_die('Accesso non consentito.', '', ['response'=>403]); }
+        nocache_headers();
+        echo '<div class="wrap"><h1>Impostazioni — OcchioAiPrezzi Bridge</h1>';
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+            check_admin_referer('oap_bridge_token');
+            if (!defined('OAP_BRIDGE_TOKEN')) {
+                $token = isset($_POST['oap_token']) && is_string($_POST['oap_token']) ? wp_unslash($_POST['oap_token']) : '';
+                try {
+                    if ($token !== '') { OAP_Auth::save_token($token); echo '<div class="notice notice-success"><p>Token salvato. Il valore non è recuperabile.</p></div>'; }
+                } catch (Throwable $e) { echo '<div class="notice notice-error"><p>Usare un token da 32 a 4096 byte senza spazi.</p></div>'; }
+                unset($token);
+            }
+        }
+        echo '<p>BRIDGE_WP_BASE_URL: <code>' . esc_html(trailingslashit(rest_url('oap-bridge/v1'))) . '</code></p>';
+        echo '<p>Scritture: ' . (OAP_Support::cfg('OAP_BRIDGE_WRITES_ENABLED', false) === true ? 'abilitate' : 'disabilitate') . '. Questo pannello non modifica l’abilitazione.</p>';
+        if (defined('OAP_BRIDGE_TOKEN')) {
+            echo '<p>Token gestito dalla costante OAP_BRIDGE_TOKEN. La costante ha precedenza; modificarla nella configurazione del server.</p>';
+        } else {
+            echo '<p>Token: ' . (get_option(OAP_Auth::TOKEN_OPTION, '') !== '' ? 'configurato' : 'non configurato') . '. Copiare il nuovo token nel gestore dei segreti del Ponte prima di salvarlo. Un campo vuoto conserva il token corrente.</p>';
+            echo '<form method="post">';
+            wp_nonce_field('oap_bridge_token');
+            echo '<label for="oap-token">Nuovo token condiviso (almeno 32 caratteri, senza spazi)</label><br><input id="oap-token" name="oap_token" type="password" value="" autocomplete="new-password" minlength="32" maxlength="4096" class="regular-text">';
+            submit_button('Salva token');
+            echo '</form><p>Il database conserva soltanto SHA-256 del token; il valore salvato non viene mostrato.</p>';
+        }
+        echo '</div>';
     }
 
     private static function document(array $row): ?array {
