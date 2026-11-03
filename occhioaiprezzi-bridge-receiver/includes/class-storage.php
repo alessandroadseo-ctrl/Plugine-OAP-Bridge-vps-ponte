@@ -4,10 +4,12 @@ final class OAP_Storage {
     private $handle;
     public string $pages;
     public string $slugs;
+    public string $affiliates;
     public function __construct() {
         global $wpdb;
         $this->handle = $wpdb->dbh;
         if (!$this->handle instanceof mysqli) { throw new OAP_Failure('oap_database_unsupported', 503); }
+        $this->affiliates = $wpdb->prefix . 'oap_affiliate_destinations';
         $this->pages = $wpdb->prefix . 'oap_pages'; $this->slugs = $wpdb->prefix . 'oap_slugs';
     }
     public static function activate(): void {
@@ -27,6 +29,14 @@ final class OAP_Storage {
             PRIMARY KEY  (gtin),
             KEY sitemap (state,indexable,gtin)
         ) ENGINE=InnoDB $collate;");
+        dbDelta("CREATE TABLE {$wpdb->prefix}oap_affiliate_destinations (
+            code varchar(43) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+            gtin char(14) NOT NULL,
+            destination_url varbinary(4096) NOT NULL,
+            active tinyint NOT NULL DEFAULT 1,
+            PRIMARY KEY  (code),
+            KEY gtin (gtin)
+        ) ENGINE=InnoDB $collate;");
         dbDelta("CREATE TABLE {$wpdb->prefix}oap_slugs (
             slug varchar(180) NOT NULL,
             gtin char(14) NOT NULL,
@@ -35,6 +45,10 @@ final class OAP_Storage {
         ) ENGINE=InnoDB $collate;");
     }
     public function query(string $sql) {
+        global $wpdb;
+        // wpdb::prepare protects literal percent signs with placeholders. We use
+        // the existing mysqli connection directly, bypassing wpdb::query's filter.
+        $sql = $wpdb->remove_placeholder_escape($sql);
         // Usa il socket esistente senza la riconnessione automatica di wpdb:
         // una perdita di connessione non deve trasformare scritture transazionali in autocommit.
         try { $result = mysqli_query($this->handle, $sql); }
@@ -57,7 +71,7 @@ final class OAP_Storage {
         // Serialize identity and slug claims; posts READ protects native ownership.
         // No WooCommerce inventory or postmeta locks are required.
         // Both custom tables must be transactional; no WP hooks run in this scope.
-        foreach ([$this->pages, $this->slugs] as $table) {
+        foreach ([$this->pages, $this->slugs, $this->affiliates] as $table) {
             $engine = $this->one($wpdb->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=%s', $table));
             if (($engine['ENGINE'] ?? '') !== 'InnoDB') { throw new OAP_Failure('oap_database_unsupported', 503); }
         }
@@ -67,7 +81,7 @@ final class OAP_Storage {
         $this->query('SET SESSION lock_wait_timeout=5');
         $this->query('SET autocommit=0');
         try {
-            $this->query("LOCK TABLES `{$wpdb->posts}` READ, `{$this->pages}` WRITE, `{$this->slugs}` WRITE");
+            $this->query("LOCK TABLES `{$wpdb->posts}` READ, `{$this->pages}` WRITE, `{$this->slugs}` WRITE, `{$this->affiliates}` WRITE");
             $locked = true;
             $result = $fn($this);
             $this->query('COMMIT');
@@ -76,6 +90,19 @@ final class OAP_Storage {
             // No SQL reconnect. Connection death implicitly drops locks and rolls back.
             try { $this->query('ROLLBACK'); if ($locked) { $this->query('UNLOCK TABLES'); } $this->query('SET autocommit=1'); $this->query('SET SESSION lock_wait_timeout=' . (int)$auto['t']); }
             catch (Throwable $ignored) { /* connection is unusable; caller returns a stable error */ }
+        }
+    }
+    /** Called only within the product transaction. Codes cannot move between products. */
+    public function sync_affiliates(string $gtin, array $destinations): void {
+        global $wpdb;
+        foreach ($destinations as $entry) {
+            $claim = $this->one($wpdb->prepare("SELECT gtin FROM `{$this->affiliates}` WHERE code=%s", $entry['code']));
+            if ($claim && $claim['gtin'] !== $gtin) { throw new OAP_Failure('oap_affiliate_code_conflict', 409); }
+        }
+        $this->query($wpdb->prepare("UPDATE `{$this->affiliates}` SET active=0 WHERE gtin=%s", $gtin));
+        foreach ($destinations as $entry) {
+            $this->query($wpdb->prepare("INSERT INTO `{$this->affiliates}` (code,gtin,destination_url,active) VALUES (%s,%s,%s,1)
+                ON DUPLICATE KEY UPDATE destination_url=VALUES(destination_url),active=1", $entry['code'], $gtin, $entry['destination_url']));
         }
     }
     public static function directory(): string {

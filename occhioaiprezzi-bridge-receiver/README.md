@@ -1,3 +1,7 @@
+## Versione 1.3.0
+
+Redirect affiliati locali e sincronizzazione transazionale: vedere [REDIRECT-AFFILIATI-1.3.0.md](REDIRECT-AFFILIATI-1.3.0.md) per contratto VPS2, aggiornamento e verifiche sui GTIN richiesti.
+
 # OAP Bridge Receiver 1.1.1
 
 Ricevitore WordPress di documenti finali della VPS Ponte. Requisiti: WordPress >=6.6, PHP >=8.1 64 bit con mysqli, MySQL/MariaDB con tabelle dedicate InnoDB e LOCK TABLES, filesystem POSIX locale con fsync e rename atomico.

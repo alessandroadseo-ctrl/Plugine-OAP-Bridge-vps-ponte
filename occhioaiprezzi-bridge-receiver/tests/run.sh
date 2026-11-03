@@ -9,3 +9,6 @@ python3 "$here/http_client.py"
 docker exec oap-receiver-php wp --allow-root eval-file wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/admin.php
 
 bash "$here/token-option.sh"
+
+docker exec oap-receiver-php wp --allow-root eval-file wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/affiliates.php
+python3 "$here/affiliates_http.py"
