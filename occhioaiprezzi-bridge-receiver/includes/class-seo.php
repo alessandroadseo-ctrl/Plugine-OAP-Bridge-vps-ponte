@@ -36,7 +36,7 @@ final class OAP_SEO {
 
     public static function serve(): void {
         // An invalid bridge configuration must never turn unrelated WP pages into 503s.
-        $candidate = wp_parse_url((string)OAP_Support::cfg('OAP_BRIDGE_PUBLIC_BASE', home_url('/prodotti-ponte')), PHP_URL_PATH);
+        $candidate = wp_parse_url((string)OAP_Support::cfg('OAP_BRIDGE_PUBLIC_BASE', home_url('/prodotti')), PHP_URL_PATH);
         $requested = wp_parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
         if (!$candidate || $candidate === '/' || !is_string($requested) || !str_starts_with($requested, rtrim($candidate,'/') . '/')) { return; }
         try {

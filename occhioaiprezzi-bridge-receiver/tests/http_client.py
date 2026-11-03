@@ -29,7 +29,7 @@ def put(p):
 p=payload(); assert put(p)['operation']=='created'
 assert put(p)['operation']=='unchanged'
 print('PASS: HTTP create and lost-ACK retry reconciliation')
-code,h,body=request('/prodotti-ponte/http-product/')
+code,h,body=request('/prodotti/http-product/')
 assert code==200 and p['html'] in body and p['seo']['title'] in body
 assert body.count('rel="canonical"')==1 and 'https://receiver.test/canonical-vps/' in body
 assert body.count('application/ld+json')==1 and '</script><script>alert(1)' not in body
@@ -37,19 +37,19 @@ assert '\\u003C' in body and h['X-Robots-Tag']=='index, follow'
 code,_,body=request('/wp-sitemap-oap-1.xml'); assert code==200 and 'canonical-vps/' in body
 print('PASS: exact VPS HTML and SEO, canonical is not regenerated')
 put(payload(2,'http-renamed',redirects=['http-product']))
-code,h,_=request('/prodotti-ponte/http-product/'); assert code==301 and h['Location']=='https://receiver.test/prodotti-ponte/http-renamed/'
+code,h,_=request('/prodotti/http-product/'); assert code==301 and h['Location']=='https://receiver.test/prodotti/http-renamed/'
 p=payload(3,'http-renamed','inactive',redirects=['http-product']); put(p)
-code,h,body=request('/prodotti-ponte/http-renamed/')
+code,h,body=request('/prodotti/http-renamed/')
 assert code==200 and p['html'] in body and p['seo']['title'] in body and 'noindex' in h['X-Robots-Tag']
 assert 'Prodotto non disponibile' not in body and 'application/ld+json' in body
 assert 'canonical-vps/' not in request('/wp-sitemap-oap-1.xml')[2]
 print('PASS: inactive renders VPS document, no generated tombstone')
 put(payload(4,'http-renamed','inactive','gone',redirects=['http-product']))
 for slug in ['http-product','http-renamed']:
-    code,h,body=request('/prodotti-ponte/'+slug+'/'); assert code==410 and 'Location' not in h
+    code,h,body=request('/prodotti/'+slug+'/'); assert code==410 and 'Location' not in h
 put(payload(5,'http-renamed'))
-assert request('/prodotti-ponte/http-product/')[0]==404
-assert request('/prodotti-ponte/http-renamed/')[0]==200
+assert request('/prodotti/http-product/')[0]==404
+assert request('/prodotti/http-renamed/')[0]==200
 code,h,_=request('/wp-json/oap-bridge/v1/pages/'+gtin); assert code==401 and 'no-store' in h['Cache-Control']
 assert request('/wp-json/oap-bridge/v1/gtins/'+gtin+'/eligibility',auth=True)[0]==404
 print('PASS: supplied gone state, removed aliases no longer redirect, private API')

@@ -30,7 +30,7 @@ final class OAP_Support {
         return $value;
     }
     public static function base(): string {
-        $base = rtrim(self::url(self::cfg('OAP_BRIDGE_PUBLIC_BASE', home_url('/prodotti-ponte'))), '/');
+        $base = rtrim(self::url(self::cfg('OAP_BRIDGE_PUBLIC_BASE', home_url('/prodotti'))), '/');
         $u = wp_parse_url($base); $home = wp_parse_url(home_url());
         if ($u['scheme'] !== 'https' || strtolower($u['host']) !== strtolower($home['host']) || ($u['port'] ?? 443) !== ($home['port'] ?? 443)
             || isset($u['query']) || isset($u['fragment']) || empty($u['path']) || $u['path'] === '/') {
