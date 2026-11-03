@@ -30,7 +30,7 @@ final class OAP_SEO {
 
     public static function bridge_assets(): void {
         if (self::$bridge_view) {
-            wp_enqueue_style('oap-bridge-products', plugins_url('../assets/oap-1.css', __FILE__), [], '1.2.0');
+            wp_enqueue_style('oap-bridge-products', plugins_url('../assets/oap-1.css', __FILE__), [], '1.3.0');
         }
     }
 
