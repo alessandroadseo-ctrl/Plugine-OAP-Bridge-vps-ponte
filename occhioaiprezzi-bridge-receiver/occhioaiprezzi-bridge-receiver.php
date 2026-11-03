@@ -2,7 +2,7 @@
 /**
  * Plugin Name: OcchioAiPrezzi Bridge Receiver
  * Description: Ricevitore privato oap-wp-1, indice dedicato e artefatti statici.
- * Version: 1.2.0
+ * Version: 1.3.0
  * Requires at least: 6.6
  * Requires PHP: 8.1
  * License: GPL-2.0-or-later
@@ -26,3 +26,14 @@ add_filter('rest_post_dispatch', static function ($response, $server, $request) 
 }, 10, 3);
 
 add_action('admin_menu', ['OAP_Admin', 'register']);
+
+// Activation hooks do not run on plugin updates. Only additive dbDelta schema changes.
+add_action('plugins_loaded', static function () {
+    if (get_option('oap_bridge_schema_version') !== '1.3.0') {
+        OAP_Storage::activate();
+        global $wpdb;
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($wpdb->prefix . 'oap_affiliate_destinations'))) === $wpdb->prefix . 'oap_affiliate_destinations') {
+            update_option('oap_bridge_schema_version', '1.3.0', false);
+        }
+    }
+});

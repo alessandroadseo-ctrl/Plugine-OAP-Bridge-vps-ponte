@@ -45,6 +45,20 @@ final class OAP_Product_Pages {
         if (!empty($seo['image'])) { OAP_Support::url($seo['image']); }
         if (isset($seo['jsonld']) && (!is_array($seo['jsonld']) || array_is_list($seo['jsonld']))) { throw new OAP_Failure('oap_invalid_jsonld'); }
         if (isset($seo['jsonld'])) { self::validate_jsonld($seo['jsonld']); }
+        if (array_key_exists('affiliate_destinations', $p)) {
+            $entries = $p['affiliate_destinations'];
+            if (!is_array($entries) || !array_is_list($entries) || count($entries) > 500) { throw new OAP_Failure('oap_invalid_affiliate_destinations'); }
+            $seen = [];
+            foreach ($entries as $entry) {
+                if (!is_array($entry) || count($entry) !== 2 || !is_string($entry['code'] ?? null)
+                    || !preg_match('/\A[A-Za-z0-9_-]{43}\z/', $entry['code'])
+                    || isset($seen[$entry['code']]) || OAP_Affiliate_Redirects::destination($entry['destination_url'] ?? null) === null
+                    || !OAP_Affiliate_Redirects::public_host($entry['destination_url'])) {
+                    throw new OAP_Failure('oap_invalid_affiliate_destinations');
+                }
+                $seen[$entry['code']] = true;
+            }
+        }
         unset($p['eligibility_proof']);
         return $p;
     }
@@ -55,9 +69,21 @@ final class OAP_Product_Pages {
             if (is_array($value)) { self::validate_jsonld($value, $depth + 1); }
         }
     }
+    /** Private artifacts retain fingerprints for idempotency, never the affiliate URLs. */
+    private static function private_snapshot(array $p): array {
+        if (array_key_exists('affiliate_destinations', $p)) {
+            foreach ($p['affiliate_destinations'] as &$entry) {
+                $entry = ['code'=>$entry['code'], 'destination_sha256'=>hash('sha256', $entry['destination_url'])];
+            }
+            unset($entry);
+        }
+        return $p;
+    }
     private static function same_document(array $p, array $row): void {
         $old = OAP_Storage::read($row['artifact']);
+        $p = self::private_snapshot($p);
         foreach (['operation','version','content_hash','eligibility_proof'] as $key) { unset($old[$key], $p[$key]); }
+        if (!array_key_exists('affiliate_destinations', $p)) { unset($old['affiliate_destinations']); }
         // Opaque Ponte hashes cannot authorize a different document on retry/cursor advance.
         if (self::ordered($old) !== self::ordered($p)) { throw new OAP_Failure('oap_hash_conflict', 409); }
     }
@@ -102,7 +128,8 @@ final class OAP_Product_Pages {
                     throw new OAP_Failure('oap_foreign_page', 409);
                 }
             }
-            $artifact = OAP_Storage::artifact($p);
+            $artifact = OAP_Storage::artifact(self::private_snapshot($p));
+            if (array_key_exists('affiliate_destinations', $p)) { $db->sync_affiliates($gtin, $p['affiliate_destinations']); }
             foreach ($slugs as $slug) {
                 $db->query($wpdb->prepare("INSERT INTO `{$db->slugs}` (slug,gtin) VALUES (%s,%s) ON DUPLICATE KEY UPDATE gtin=VALUES(gtin)", $slug, $gtin));
             }
