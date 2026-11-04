@@ -1,12 +1,18 @@
-# Redirect affiliati locali — versione 1.3.0
+# Redirect affiliati locali — versione 1.3.1
 
 ## Installazione manuale
 
 Installare lo ZIP come aggiornamento del plugin esistente. Non viene eseguito alcun deploy automatico. Non cambiano token, credenziali, endpoint autenticato o impostazioni esistenti. Effettuare il normale backup prima dell'aggiornamento.
 
-La prima richiesta dopo l'aggiornamento esegue `dbDelta`: aggiunge la tabella `${prefisso}oap_affiliate_destinations` InnoDB. Non elimina né converte tabelle o dati. Servono i permessi CREATE/ALTER già richiesti dall'attivazione del ricevitore. Le scritture falliscono con 503 se una tabella coinvolta non è InnoDB. Non viene creato alcun post WordPress.
+L’aggiornamento da 1.3.0 a 1.3.1 non cambia lo schema: la versione schema resta 1.3.0 e la tabella `${prefisso}oap_affiliate_destinations` resta intatta. Per una nuova installazione o un aggiornamento da versioni precedenti a 1.3.0 rimane l’attivazione additiva `dbDelta`, con i permessi CREATE/ALTER già richiesti dal ricevitore. Attivazione, aggiornamento e disattivazione non cancellano tabelle o record. Le scritture falliscono con 503 se una tabella coinvolta non è InnoDB. Non viene creato alcun post WordPress.
 
-Escludere `/compara` dalla cache del CDN/hosting, che deve rispettare `Cache-Control: no-store`. Non sono necessarie connessioni WireGuard o chiamate alla VPS2 durante il clic. Le precedenti impostazioni `OAP_BRIDGE_REDIRECT_BASE` e `OAP_BRIDGE_REDIRECT_TOKEN` rimangono intatte ma non vengono utilizzate. Le vecchie rotte `/compara/UUID`, prive di una mappatura locale nel contratto, restituiscono 404.
+L’unico endpoint affiliati Bridge è `https://occhioaiprezzi.com/go/?id=CODICE` (accettato anche `/go?id=CODICE`). Richiede esattamente un parametro `id` di 43 caratteri `[A-Za-z0-9_-]`, senza decodifica o parametri aggiuntivi. GET e HEAD restituiscono 302 con Location identica all’URL memorizzato, `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex`. Codici malformati, sconosciuti o revocati restituiscono 404 senza Location; gli altri metodi restituiscono 405 e `Allow: GET, HEAD`, anche con query invalida.
+
+Tutte le altre rotte restituiscono `null` da `response()`, inclusi `/compara`, `/compara/`, `/compara?id=...`, `/compara/QUALSIASI-CODICE`, `/compara/?id=...` e i sottopercorsi `/go/...`. Il Bridge non aggiunge redirect di compatibilità, rewrite o regole globali; il sistema esistente su `/compara/` mantiene i propri 301. Il gestore delle pagine prodotto rimane sul namespace `/prodotti/` o sul suo override preesistente.
+
+Escludere **sia `/go` sia `/go/`, con qualunque query**, dalla cache CDN, reverse proxy, hosting e plugin cache. Rispettare `no-store` anche per 404 e 405; invalidare eventuali risposte già memorizzate su queste due rotte. Le regole di `/compara/` restano di competenza del sistema esistente. Non serve un flush dei permalink. Non sono necessarie connessioni WireGuard o chiamate alla VPS2 durante il clic. Le precedenti impostazioni `OAP_BRIDGE_REDIRECT_BASE` e `OAP_BRIDGE_REDIRECT_TOKEN` non vengono utilizzate.
+
+Le CTA inviate da VPS2 devono usare `/go/?id=CODICE` mantenendo lo stesso codice. Il plugin non riscrive l’HTML o le CTA già salvate e non genera codici: eventuali CTA Bridge precedenti su `/compara` vanno aggiornate dal produttore con il normale payload `update`, versione e hash nuovi, senza modificare layout, slug o SEO.
 
 ## Contratto VPS2
 
@@ -45,10 +51,10 @@ Ripetere per `03253561929809` e `03253561756726` su staging, usando i loro codic
 3. Richiedere il codice effettivo senza seguire il redirect:
 
    ```sh
-   curl -sS -D - -o /dev/null 'https://DOMINIO/compara?id=CODICE_ESISTENTE'
+   curl -sS -D - -o /dev/null 'https://DOMINIO/go/?id=CODICE_ESISTENTE'
    ```
 
-   Attesi: HTTP 302, `Location` uguale byte per byte all'originale, `Cache-Control` contenente `no-store`, `Referrer-Policy: no-referrer`. Ripetere con `curl -I` per HEAD.
+   Attesi: HTTP 302, `Location` uguale byte per byte all'originale, `Cache-Control` contenente `no-store`, `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex`. Ripetere con `curl -I` per HEAD.
 4. Modificare un URL nella lista, incrementare versione e hash e reinviare. Il codice deve puntare al nuovo URL. Ripetere lo stesso invio: `unchanged`, senza duplicazioni. Un cambio URL con stessa versione/hash deve essere rifiutato con 409.
 5. Rimuovere un codice dalla lista completa, incrementare versione/hash e reinviare. Quel codice e un codice inesistente devono restituire 404 senza `Location`. Gli altri codici del prodotto e quelli dell'altro GTIN devono restare funzionanti.
 6. Inviare un aggiornamento precedente senza `affiliate_destinations`: nessuna destinazione deve essere cancellata. Provare anche `[]` su staging: tutti e soli i codici di quel GTIN devono diventare 404.
@@ -59,3 +65,5 @@ Prima di rendere operativo il nuovo gestore inviare da VPS2 le associazioni dei 
 ## Test riproducibili
 
 La suite usa WordPress 6.8.3, WooCommerce 10.3.5, MariaDB 11.4 e PHP 8.3 in container locali usa e getta. Non eseguirla sul sito reale. Vedere `tests/README.md`. I test `affiliates.php` e `affiliates_http.py` verificano creazione, modifica, revoca, lista vuota, payload legacy, idempotenza, isolamento tra GTIN, rollback su errore SQL, HTTP 302/404, header, contenuti e assenza di nuovi post.
+
+La suite `compara_http.py` installa temporaneamente un handler esclusivamente nel WordPress usa e getta: confronta 20 risposte HTTP (5 rotte × GET/HEAD/POST/OPTIONS) con i due hook Bridge abilitati e disabilitati, inclusi tutti gli header salvo Date e il corpo. Ripristina le fixture con finally. I test diretti verificano `response() === null` per ciascuna rotta estranea, query rigorose, 405 e destinazioni non sicure anche se presenti nel DB.
