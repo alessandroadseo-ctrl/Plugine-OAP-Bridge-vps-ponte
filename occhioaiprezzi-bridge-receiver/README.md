@@ -1,6 +1,6 @@
-## Versione 1.3.0
+## Versione 1.3.1
 
-Redirect affiliati locali e sincronizzazione transazionale: vedere [REDIRECT-AFFILIATI-1.3.0.md](REDIRECT-AFFILIATI-1.3.0.md) per contratto VPS2, aggiornamento e verifiche sui GTIN richiesti.
+Redirect affiliati locali e sincronizzazione transazionale: vedere [REDIRECT-AFFILIATI-1.3.1.md](REDIRECT-AFFILIATI-1.3.1.md) per contratto VPS2, aggiornamento e verifiche sui GTIN richiesti.
 
 # OAP Bridge Receiver 1.1.1
 

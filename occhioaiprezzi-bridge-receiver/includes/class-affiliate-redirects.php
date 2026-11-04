@@ -57,15 +57,14 @@ final class OAP_Affiliate_Redirects {
     /** Return a response description so validation/transport can be tested without exit(). */
     public static function response(string $uri, string $method): ?array {
         $path = wp_parse_url($uri, PHP_URL_PATH);
-        $base = rtrim((string)wp_parse_url(home_url('/compara'), PHP_URL_PATH), '/');
-        if ($path === $base || $path === $base . '/') {
-            $query = wp_parse_url($uri, PHP_URL_QUERY) ?? '';
-            if (!preg_match('/\Aid=([A-Za-z0-9_-]{43})\z/', $query, $match)) { return ['status' => 404]; }
-            $code = $match[1];
-        } elseif (is_string($path) && str_starts_with($path, $base . '/')) {
-            return ['status' => 404];
-        } else { return null; }
+        $base = rtrim((string)wp_parse_url(home_url('/go/'), PHP_URL_PATH), '/');
+        // Own only these exact paths. All other requests remain entirely with WordPress.
+        if ($path !== $base && $path !== $base . '/') { return null; }
         if (!in_array($method, ['GET', 'HEAD'], true)) { return ['status' => 405]; }
+        $query = wp_parse_url($uri, PHP_URL_QUERY) ?? '';
+        // Match raw bytes: one id, no decoding, duplicate keys or extra parameters.
+        if (!preg_match('/\Aid=([A-Za-z0-9_-]{43})\z/', $query, $match)) { return ['status' => 404]; }
+        $code = $match[1];
         try {
             global $wpdb;
             $db = new OAP_Storage();

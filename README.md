@@ -11,3 +11,5 @@ Mantiene Bearer HTTPS, proprietà delle pagine, GTIN unico, idempotenza, version
 - [Verifiche e limiti](docs/validation.md)
 
 Nessuna installazione sul sito reale o modifica alla VPS. Nessun flag operativo di pubblicazione abilitato.
+
+Versione 1.3.1: redirect affiliati esclusivamente su `/go/?id=CODICE`; nessuna intercettazione di `/compara/`. Vedere [documentazione affiliati](occhioaiprezzi-bridge-receiver/REDIRECT-AFFILIATI-1.3.1.md).

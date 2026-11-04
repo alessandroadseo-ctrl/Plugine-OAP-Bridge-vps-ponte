@@ -2,7 +2,7 @@
 /**
  * Plugin Name: OcchioAiPrezzi Bridge Receiver
  * Description: Ricevitore privato oap-wp-1, indice dedicato e artefatti statici.
- * Version: 1.3.0
+ * Version: 1.3.1
  * Requires at least: 6.6
  * Requires PHP: 8.1
  * License: GPL-2.0-or-later
