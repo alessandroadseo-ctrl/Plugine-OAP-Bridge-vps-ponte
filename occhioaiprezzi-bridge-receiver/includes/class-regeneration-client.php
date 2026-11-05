@@ -1,75 +1,63 @@
 <?php
 defined('ABSPATH') || exit;
 
-/** Outbound control only. Never receives, renders or publishes product documents. */
+/** Shared oap-regeneration-poll-1 validation. No outbound HTTP transport. */
 final class OAP_Regeneration_Client {
-    public static function request(string $command = 'status', array $payload = [], string $key = '') {
-        if (!in_array($command, ['status', 'start', 'pause', 'resume'], true)) {
-            return new WP_Error('invalid_command', 'Comando non valido.');
+    const PROTOCOL = 'oap-regeneration-poll-1';
+
+    public static function worker(): string {
+        $id = defined('OAP_REGENERATION_WORKER_ID') ? OAP_REGENERATION_WORKER_ID : '';
+        $token = defined('OAP_REGENERATION_POLL_TOKEN') ? OAP_REGENERATION_POLL_TOKEN : '';
+        if (!is_string($id) || !preg_match('/\A[A-Za-z0-9_.:-]{1,64}\z/', $id) ||
+            !is_string($token) || !preg_match('/\A[\x21-\x7e]{32,4096}\z/', $token) ||
+            (defined('OAP_BRIDGE_TOKEN') && hash_equals((string)OAP_BRIDGE_TOKEN, $token)) ||
+            (defined('OAP_REGENERATION_TOKEN') && hash_equals((string)OAP_REGENERATION_TOKEN, $token)) ||
+            hash_equals((string)get_option(OAP_Auth::TOKEN_OPTION, ''), hash('sha256', $token))) {
+            throw new OAP_Failure('oap_regeneration_configuration', 503);
         }
-        $base = defined('OAP_REGENERATION_URL') ? OAP_REGENERATION_URL : '';
-        $token = defined('OAP_REGENERATION_TOKEN') ? OAP_REGENERATION_TOKEN : '';
-        $url = is_string($base) ? wp_parse_url($base) : false;
-        if (!$url || ($url['scheme'] ?? '') !== 'https' || empty($url['host']) ||
-            isset($url['user']) || isset($url['pass']) || isset($url['query']) || isset($url['fragment']) ||
-            !is_string($token) || strlen($token) < 32 || strlen($token) > 4096 || preg_match('/\s/', $token)) {
-            return new WP_Error('configuration', 'Configurazione VPS2 mancante o non valida.');
-        }
-        $headers = ['Authorization'=>'Bearer ' . $token, 'Accept'=>'application/json'];
-        if ($command !== 'status') {
-            if (!preg_match('/^[a-f0-9-]{36}$/D', $key)) { return new WP_Error('invalid_key', 'Identificativo comando non valido.'); }
-            $headers['Idempotency-Key'] = $key;
-            $headers['Content-Type'] = 'application/json';
-        }
-        $args = [
-            'method'=>$command === 'status' ? 'GET' : 'POST', 'headers'=>$headers,
-            'timeout'=>12, 'redirection'=>0, 'sslverify'=>true,
-            'limit_response_size'=>65536, 'reject_unsafe_urls'=>true,
-        ];
-        if ($command !== 'status') { $args['body'] = wp_json_encode((object)$payload); }
-        $response = wp_safe_remote_request(rtrim($base, '/') . '/api/v1/regeneration/' . $command, $args);
-        // Never expose response bodies, URLs, WP transport errors or credentials.
-        if (is_wp_error($response)) { return new WP_Error('unreachable', 'VPS2 non raggiungibile.'); }
-        if (wp_remote_retrieve_response_code($response) < 200 || wp_remote_retrieve_response_code($response) >= 300) {
-            return new WP_Error('http', 'VPS2 non ha confermato la richiesta.');
-        }
-        $body = json_decode(wp_remote_retrieve_body($response), true);
-        if (!is_array($body) || ($body['ok'] ?? null) !== true || !isset($body['campaign']) ||
-            ($command !== 'status' && ($body['request_id'] ?? '') !== $key)) {
-            return new WP_Error('invalid_response', 'Conferma VPS2 non valida.');
-        }
-        $campaign = self::validate($body['campaign']);
-        if (is_wp_error($campaign)) { return $campaign; }
-        $expected = ['start'=>['running'], 'pause'=>['paused'], 'resume'=>['running']];
-        if (isset($expected[$command]) && !in_array($campaign['state'], $expected[$command], true)) {
-            return new WP_Error('invalid_response', 'Stato VPS2 non coerente con il comando.');
-        }
-        return $campaign;
+        return $id;
     }
 
-    /** Strict, allowlisted snapshot: no arbitrary upstream fields reach WP/browser. */
-    public static function validate($data) {
-        $error = new WP_Error('invalid_response', 'Stato VPS2 non valido.');
-        if (!is_array($data) || !in_array($data['state'] ?? '', ['idle','running','paused','completed','completed_with_errors'], true)) { return $error; }
-        $out = ['state'=>$data['state']];
-        foreach (['total','examined','updated','unchanged','errors','remaining'] as $field) {
-            if (!isset($data[$field]) || !is_int($data[$field]) || $data[$field] < 0 || $data[$field] > 2147483647) { return $error; }
-            $out[$field] = $data[$field];
+    public static function integer($value, int $min = 0): bool {
+        return is_int($value) && $value >= $min;
+    }
+
+    public static function uuid($value): bool {
+        return is_string($value) && preg_match('/\A[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\z/', $value);
+    }
+
+    public static function keys(array $data, array $keys): void {
+        $actual = array_keys($data); sort($actual); sort($keys);
+        if ($actual !== $keys) { throw new OAP_Failure('oap_regeneration_schema'); }
+    }
+
+    /** Preserve VPS2 counters; errors overlap pending items and may decrease. */
+    public static function campaign($data): array {
+        if (!is_array($data)) { throw new OAP_Failure('oap_regeneration_schema'); }
+        if (($data['state'] ?? '') === 'idle') {
+            self::keys($data, ['state','campaign_id']);
+            if ($data['campaign_id'] !== null) { throw new OAP_Failure('oap_regeneration_schema'); }
+            return $data;
         }
-        if ($out['examined'] !== $out['updated'] + $out['unchanged'] + $out['errors'] ||
-            $out['total'] !== $out['examined'] + $out['remaining']) { return $error; }
-        foreach (['started_at','updated_at'] as $field) {
-            $value = $data[$field] ?? null;
-            if ($value !== null && (!is_string($value) || !preg_match('/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:Z|[+-]\\d{2}:\\d{2})$/D', $value) || strtotime($value) === false)) { return $error; }
-            $out[$field] = $value;
+        self::keys($data, ['campaign_id','state','created_at','completed_at','checkpoint','total','examined','queued',
+            'updated','unchanged','superseded','errors','remaining','to_examine','awaiting_publication']);
+        if (!self::uuid($data['campaign_id']) || !in_array($data['state'], ['running','paused','completed'], true) ||
+            !self::integer($data['created_at']) || ($data['completed_at'] !== null && !self::integer($data['completed_at'])) ||
+            !is_string($data['checkpoint']) || !preg_match('/\A(?:[0-9]{14})?\z/', $data['checkpoint'])) {
+            throw new OAP_Failure('oap_regeneration_schema');
         }
-        if ($out['state'] !== 'idle' && (!$out['started_at'] || !$out['updated_at'])) { return $error; }
-        if (!isset($data['id']) || !is_string($data['id']) || !preg_match('/^[A-Za-z0-9_-]{1,128}$/D', $data['id'])) { return $error; }
-        $out['id'] = $data['id'];
-        if ($out['state'] === 'idle' && ($out['total'] !== 0 || $out['started_at'] !== null)) { return $error; }
-        if (in_array($out['state'], ['completed','completed_with_errors'], true) && $out['remaining'] !== 0) { return $error; }
-        if ($out['state'] === 'completed' && $out['errors'] !== 0) { return $error; }
-        if ($out['state'] === 'completed_with_errors' && $out['errors'] === 0) { return $error; }
-        return $out;
+        foreach (['total','examined','queued','updated','unchanged','superseded','errors','remaining','to_examine','awaiting_publication'] as $field) {
+            if (!self::integer($data[$field]) || $data[$field] > $data['total']) { throw new OAP_Failure('oap_regeneration_schema'); }
+        }
+        // Terminal errors are distinct from current errors (which also include retries).
+        $terminal = $data['total'] - $data['remaining'];
+        $success = $data['updated'] + $data['unchanged'] + $data['superseded'];
+        if ($success > $terminal || $terminal - $success > $data['errors'] ||
+            $data['examined'] !== $data['total'] - $data['to_examine'] ||
+            $data['remaining'] !== $data['to_examine'] + $data['awaiting_publication'] ||
+            ($data['state'] === 'completed' && ($data['remaining'] !== 0 || $data['completed_at'] === null))) {
+            throw new OAP_Failure('oap_regeneration_schema');
+        }
+        return $data;
     }
 }

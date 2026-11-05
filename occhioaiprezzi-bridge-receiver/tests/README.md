@@ -25,3 +25,14 @@ Le suite `affiliates.php` e `affiliates_http.py`, incluse in run.sh, verificano 
 Versione 1.3.1: test diretti su `/go` e `/go/`, GET/HEAD, 405, query malformate/duplicate/aggiuntive, open redirect e URL pericolosi nel DB. `compara_http.py`, inclusa in run.sh, confronta 20 risposte del gestore WordPress `/compara` simulato con entrambi gli hook Bridge disabilitati e abilitati; status 301, Location, altri header e body devono restare identici. Le fixture temporanee sono rimosse in finally.
 
 Versione 1.3.2: `unsafe-html.php`, inclusa in `integration.php`, verifica CTA con `target="_blank"` e rifiuto REST 400 `oap_unsafe_html` per script, PHP, eventi anche mixed case, iframe, SVG, form, tag/attributi non autorizzati e normalizzazione di entità da KSES. URL pericolosi con target restano rifiutati. La fixture `fixtures/vps2-product.html` è generata con Jinja2 dal template VPS2 `app/renderer/templates/product.html` (blob `42183afeae848c0a716ae14a8185941a3407833e`), con la normalizzazione delle entità prevista dal renderer `render.py` (blob `ee1068c11fcc8169ae76c9f6e8d8be8bf642c0af`). Copre tutte le tipologie di tag/attributi del template, immagini, testo escapato, offerte con/senza CTA, spedizione nota/ignota e descrizione. VPS2 è stato consultato soltanto in lettura. La fixture attraversa validazione, REST, archiviazione, retry e rendering HTTP; SEO e hash ricevuti restano identici. Anche la suite affiliati pubblica CTA con target.
+
+Versione 1.4.1: `regeneration.php` sostituisce i test outbound 1.4.0 e verifica il
+protocollo privato poll/ack, permessi/nonce, TLS/token/worker, persistenza,
+ritrasmissioni, doppio clic, ACK perso/conflittuale/storico, ricevute rejected,
+contatori VPS2, snapshot obsoleto, mutex tra connessioni e rollback transazionale.
+`node tests/regeneration-ui.cjs` (Node 18+) verifica gli stati del browser e il
+retry con chiave invariata. `regeneration_vps2.py` collauda il client Python reale
+al commit fissato contro REST e AJAX WordPress reali; eseguirlo dopo `run.sh`,
+usando il Python dell'ambiente frozen di vps-ponte e passando il percorso del clone.
+Non eseguire contemporaneamente suite che cambiano il wp-config di test.
+Vedere [docs-regeneration.md](../docs-regeneration.md) per comandi e limiti.

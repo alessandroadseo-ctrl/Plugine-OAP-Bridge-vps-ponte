@@ -47,3 +47,10 @@ Nessuna nuova tabella, opzione persistente o copia in `wp_posts`. Senza ricerca 
 Aprire **OcchioAiPrezzi Bridge → Impostazioni** per salvare un token dedicato da almeno 32 caratteri senza spazi. Il pannello conserva solo SHA-256 e non mostra il valore salvato. La costante OAP_BRIDGE_TOKEN, se definita, mantiene la precedenza. La pagina mostra la base REST effettiva; non abilita scritture. Vedere `docs/wordpress-connection.md` nel repository per la procedura completa. Le offerte con availability unknown sono preservate senza generare disponibilità o schema.
 
 Il percorso pubblico predefinito è `/prodotti/slug-prodotto/`; `OAP_BRIDGE_PUBLIC_BASE`, se definita, continua a prevalere. Per adottare il nuovo default su un sito con la costante impostata a `/prodotti-ponte`, rimuovere tale override o impostarlo a `https://www.occhioaiprezzi.com/prodotti`. I prodotti già registrati vengono risolti dagli slug esistenti senza ricreazione, migrazioni DB o reinvii VPS2. Il canonical SEO fornito dalla VPS resta invariato. Non sono necessarie nuove regole rewrite o un flush dei permalink: il plugin usa `template_redirect`. Verificare in staging che il namespace non sia già riservato da altre integrazioni; le rotte senza claim Bridge continuano nella normale gestione WordPress.
+
+## Rigenerazione schede 1.4.1
+
+Il pannello amministrativo accoda comandi persistenti; VPS2 legge e conferma via
+REST privato con il protocollo condiviso `oap-regeneration-poll-1`.
+Vedere [configurazione, contratto, aggiornamento e rollback](docs-regeneration.md).
+Nessuna connessione WordPress → VPS2 è richiesta.
