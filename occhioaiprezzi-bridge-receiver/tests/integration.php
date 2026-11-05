@@ -10,11 +10,12 @@ function req($method,$path,$data=null,$token=null) {
 }
 function bundle($gtin,$slug='test-prodotto',$version=1,$hash='a') {
     return ['protocol'=>'oap-wp-1','gtin'=>$gtin,'slug'=>$slug,'version'=>$version,'content_hash'=>str_repeat($hash,64),
-    'html'=>'<article><h1>Prodotto</h1><p>Offerta</p><a href="https://shop.test/item" rel="sponsored nofollow">Acquista</a></article>',
+    'html'=>file_get_contents(__DIR__.'/fixtures/vps2-product.html'),
     'seo'=>['title'=>'Titolo SEO','description'=>'Descrizione','canonical'=>OAP_Support::canonical($slug),'h1'=>'Prodotto','gtin'=>$gtin,'indexable'=>true,'modified_at'=>1700000000,'jsonld'=>['@context'=>'https://schema.org','@type'=>'Product','name'=>'</script><script>alert(1)</script>']],
     'state'=>'active','redirects'=>[],'removal_policy'=>'temporary','operation'=>$version === 1 ? 'create' : 'update'];
 }
 global $wpdb;
+require __DIR__.'/unsafe-html.php';
 $db=new OAP_Storage();
 $wpdb->query("DELETE FROM {$db->slugs}"); $wpdb->query("DELETE FROM {$db->pages}");
 $gtin='00012345678905';
@@ -32,6 +33,7 @@ $id=$r->get_data()['remote_id']; $artifact=$db->page($gtin)['artifact']; $mtime=
 $r=req('PUT',"pages/$gtin",$p); check($r->get_status()===200 && $r->get_data()['operation']==='unchanged','identical retry after lost ACK');
 check($db->page($gtin)['artifact']===$artifact && filemtime(OAP_Storage::directory()."/$artifact.json")===$mtime,'retry preserves artifact and lastmod');
 check(OAP_Storage::read($artifact)['html']===$p['html'],'active HTML stored byte for byte');
+check(OAP_Storage::read($artifact)['seo']===$p['seo'] && $db->page($gtin)['installed_hash']===$p['content_hash'], 'target CTA preserves received SEO and opaque hash');
 $bad=$p; $bad['html']='<h4>Unsupported heading</h4>'; check(req('PUT',"pages/$gtin",$bad)->get_data()['code']==='oap_unsafe_html','HTML is rejected rather than rewritten');
 $retry=$p; $retry['eligibility_proof']='expired-ignored'; check(req('PUT',"pages/$gtin",$retry)->get_data()['operation']==='unchanged','legacy proof cannot affect authorization');
 $retry=$p; $retry['seo']=array_reverse($retry['seo'],true); check(req('PUT',"pages/$gtin",$retry)->get_data()['operation']==='unchanged','JSON key order does not break retry');

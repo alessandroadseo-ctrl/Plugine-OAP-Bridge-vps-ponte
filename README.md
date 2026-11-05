@@ -13,3 +13,5 @@ Mantiene Bearer HTTPS, proprietà delle pagine, GTIN unico, idempotenza, version
 Nessuna installazione sul sito reale o modifica alla VPS. Nessun flag operativo di pubblicazione abilitato.
 
 Versione 1.3.1: redirect affiliati esclusivamente su `/go/?id=CODICE`; nessuna intercettazione di `/compara/`. Vedere [documentazione affiliati](occhioaiprezzi-bridge-receiver/REDIRECT-AFFILIATI-1.3.1.md).
+
+Versione 1.3.2: compatibilità delle CTA VPS2 con `target="_blank"`, validatore rigoroso invariato. Pacchetto installabile in `releases/occhioaiprezzi-bridge-receiver-1.3.2.zip`; risultati in [docs/validation-1.3.2.md](docs/validation-1.3.2.md).

@@ -1,3 +1,7 @@
+## Versione 1.3.2
+
+Corretto `oap_unsafe_html` sulle CTA VPS2: consentito `target` soltanto sui link. Restano attivi il confronto byte per byte con `wp_kses()`, i controlli URL e il rifiuto di script, attributi `on*` e markup non autorizzato. Nessuna modifica a storage, schema DB, protocollo REST, hash, SEO o redirect affiliati.
+
 ## Versione 1.3.1
 
 Redirect affiliati locali e sincronizzazione transazionale: vedere [REDIRECT-AFFILIATI-1.3.1.md](REDIRECT-AFFILIATI-1.3.1.md) per contratto VPS2, aggiornamento e verifiche sui GTIN richiesti.

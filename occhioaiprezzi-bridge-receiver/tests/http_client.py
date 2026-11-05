@@ -1,5 +1,6 @@
 """Real HTTP receiver contract tests. No dependency on, or changes to, vps-ponte."""
 import json
+from pathlib import Path
 from urllib.request import Request, build_opener, ProxyHandler, HTTPRedirectHandler
 from urllib.error import HTTPError
 
@@ -26,7 +27,7 @@ def put(p):
     code,_,body=request('/wp-json/oap-bridge/v1/pages/'+gtin,'PUT',p,True)
     assert code in (200,201),(code,body)
     return json.loads(body)
-p=payload(); assert put(p)['operation']=='created'
+p=payload(); p['html']=Path(__file__).with_name('fixtures').joinpath('vps2-product.html').read_text(); assert put(p)['operation']=='created'
 assert put(p)['operation']=='unchanged'
 print('PASS: HTTP create and lost-ACK retry reconciliation')
 code,h,body=request('/prodotti/http-product/')

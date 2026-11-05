@@ -34,7 +34,7 @@ Gestita: versione massima installata (anche inattiva), hash, remote_id stabile `
 
 SEO: `title` stringa non vuota, `canonical` URL HTTP(S) assoluto sicuro, `indexable` booleano e `modified_at` epoch intero >=0 obbligatori per **entrambi** gli stati. `inactive` richiede `indexable:false`. Il canonical è quello ricevuto, anche se diverso dall'URL locale; non viene ricostruito. Opzionali: description, h1, brand, image, category (stringhe <=4096 byte), gtin coincidente con path, jsonld oggetto o null. Image e URL JSON-LD sono validati. JSON-LD viene serializzato con escape sicuri, senza deduzioni o generazione schema. Il vecchio flag locale `OAP_BRIDGE_JSONLD_ENABLED` non condiziona più il rendering: l'omissione/null di jsonld si decide sulla VPS.
 
-HTML: la validazione tecnica rifiuta PHP, script, handler on*, URL pericolosi e markup fuori allowlist. Se `wp_kses` cambierebbe il frammento, il PUT fallisce con 400 `oap_unsafe_html`: non viene salvata una versione riscritta. Allowlist: article, section, div, span, p, h1/h2/h3, strong, em, ul/ol/li, br, table/caption/thead/tbody/tr/th/td con class; a con href/rel/title; img con src/alt/loading/width/height. URL assoluti HTTP(S), nessuna credenziale. La VPS deve produrre HTML conforme.
+HTML: la validazione tecnica rifiuta PHP, script, handler on*, URL pericolosi e markup fuori allowlist. Se `wp_kses` cambierebbe il frammento, il PUT fallisce con 400 `oap_unsafe_html`: non viene salvata una versione riscritta. Allowlist: article, section, div, span, p, h1/h2/h3, strong, em, ul/ol/li, br, table/caption/thead/tbody/tr/th/td con class; a con href/rel/title/target; img con src/alt/loading/width/height. URL assoluti HTTP(S), nessuna credenziale. La VPS deve produrre HTML conforme.
 
 ### Precondizioni e retry
 
