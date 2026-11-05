@@ -40,6 +40,9 @@ final class OAP_Media {
             if (!preg_match('/\\ABearer ([^\\s]+)\\z/i', $header, $matches) || !OAP_Auth::matches($matches[1])) {
                 throw new OAP_Failure('oap_unauthorized', 401);
             }
+            if (OAP_Support::cfg('OAP_BRIDGE_WRITES_ENABLED', false) !== true) {
+                throw new OAP_Failure('oap_writes_disabled', 403);
+            }
             $kind = (string)$request->get_param('kind');
             $limit = $kind === 'products' ? 8388608 : 524288;
             if ((int)$request->get_header('content-length') > $limit) {
