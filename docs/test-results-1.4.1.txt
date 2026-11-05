@@ -1,0 +1,406 @@
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-admin.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-affiliate-redirects.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-auth.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-product-pages.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-regeneration-admin.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-regeneration-client.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-rest-api.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-seo.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-sitemap.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-storage.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-support.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-regeneration-rest.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/includes/class-regeneration-store.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/occhioaiprezzi-bridge-receiver.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/admin.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/affiliates.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/concurrent-worker.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/integration.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/public-base.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/regeneration.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/token-option.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/unsafe-html.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/wp-config.php
+No syntax errors detected in wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/regeneration-config.php
+PASS: VPS2 template markup and target CTA accepted byte for byte
+PASS: oap_unsafe_html: script
+PASS: oap_unsafe_html: PHP
+PASS: oap_unsafe_html: onclick on CTA
+PASS: oap_unsafe_html: mixed case event
+PASS: oap_unsafe_html: image event
+PASS: oap_unsafe_html: iframe
+PASS: oap_unsafe_html: SVG
+PASS: oap_unsafe_html: form
+PASS: oap_unsafe_html: unsupported tag
+PASS: oap_unsafe_html: unsupported attribute
+PASS: oap_unsafe_html: style attribute
+PASS: oap_unsafe_html: target remains anchor only
+PASS: oap_unsafe_html: KSES byte normalization
+PASS: target does not bypass URL validation: javascript:alert(1)
+PASS: target does not bypass URL validation: data:text/html,evil
+PASS: real WooCommerce loaded
+PASS: absent page reconciliation
+PASS: new product creation
+PASS: unknown availability accepted
+PASS: unknown availability never promoted to confirmed
+PASS: identical retry after lost ACK
+PASS: retry preserves artifact and lastmod
+PASS: active HTML stored byte for byte
+PASS: target CTA preserves received SEO and opaque hash
+PASS: HTML is rejected rather than rewritten
+PASS: legacy proof cannot affect authorization
+PASS: JSON key order does not break retry
+PASS: same version different hash
+PASS: update same remote identity
+PASS: obsolete version
+PASS: opaque hash cannot hide changed body
+PASS: cursor only no public change
+PASS: cursor cannot hide content change
+PASS: foreign owner rejected
+PASS: wrong token
+PASS: missing token
+PASS: HTTP rejected
+PASS: eligibility endpoint removed
+PASS: VPS operation required
+PASS: update never creates
+PASS: create never updates
+PASS: script HTML rejected
+PASS: event handler rejected
+PASS: unsafe URL rejected
+PASS: unsafe canonical rejected
+PASS: open redirect rejected
+PASS: request size limit
+PASS: native page ownership protected
+PASS: native content remains unchanged
+PASS: global historical alias protected
+PASS: VPS create applied despite Woo GTIN
+PASS: VPS deactivation applied despite Woo GTIN
+PASS: inactive HTML retained exactly
+PASS: sitemap canonical and bundle lastmod
+PASS: inactive temporary tombstone
+PASS: inactive excluded from sitemap
+PASS: reactivation greater version
+PASS: later Woo GTIN cannot override VPS state
+PASS: Woo removal does not decide state
+PASS: JSON-LD script boundary escaped
+PASS: one identity per GTIN
+Success: Integration suite complete
+PASS: six concurrent identical writes, one creation and five confirmations
+PASS: competing create requests cannot overwrite one GTIN
+PASS: concurrent GTINs cannot claim the same slug
+PASS: receiver creates without WooCommerce loaded
+PASS: existing publication moves to /prodotti/ without VPS resend or data changes
+PASS: native root/child pages, unknown paths and REST routes retain WordPress handling
+PASS: OAP_BRIDGE_PUBLIC_BASE overrides both routing and generated URLs
+PASS: HTTP create and lost-ACK retry reconciliation
+PASS: exact VPS HTML and SEO, canonical is not regenerated
+PASS: inactive renders VPS document, no generated tombstone
+PASS: supplied gone state, removed aliases no longer redirect, private API
+PASS: pagination and title search across artifacts
+PASS: pages do not overlap
+PASS: GTIN search clamps out of range page
+PASS: search metacharacters are literal
+PASS: empty search results
+PASS: administrator menu and submenu
+PASS: state counters
+PASS: search persists in pagination
+PASS: public link uses installed route instead of SEO canonical
+PASS: metadata and titles escaped
+PASS: preview isolated and resource loads blocked
+PASS: current index version and no mutation controls
+PASS: missing detail
+PASS: unreadable artifact handled
+PASS: foreign owner hidden
+PASS: list/detail denied for editor
+PASS: list/detail denied for editor
+PASS: list/detail denied for subscriber
+PASS: list/detail denied for subscriber
+PASS: list/detail denied for anonymous
+PASS: list/detail denied for anonymous
+PASS: no wp_posts duplication
+PASS: existing receiver rows unchanged
+Success: Admin suite complete
+PASS: only token digest persisted
+PASS: secure option-token comparison
+PASS: Bearer option token and exact ACK contract
+PASS: native WordPress Authorization source HTTP_AUTHORIZATION
+PASS: native WordPress Authorization source REDIRECT_HTTP_AUTHORIZATION
+PASS: wrong option token rejected
+PASS: rotation revokes previous token
+PASS: admin never redisplays token or digest
+PASS: admin nonce-protected token save without redisplay
+PASS: empty admin input preserves token
+PASS: create affiliate associations
+PASS: 302 exact original URL bytes
+PASS: unrelated request untouched: GET /compara
+PASS: unrelated request untouched: HEAD /compara
+PASS: unrelated request untouched: POST /compara
+PASS: unrelated request untouched: OPTIONS /compara
+PASS: unrelated request untouched: GET /compara/
+PASS: unrelated request untouched: HEAD /compara/
+PASS: unrelated request untouched: POST /compara/
+PASS: unrelated request untouched: OPTIONS /compara/
+PASS: unrelated request untouched: GET /compara?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: unrelated request untouched: HEAD /compara?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: unrelated request untouched: POST /compara?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: unrelated request untouched: OPTIONS /compara?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: unrelated request untouched: GET /compara/QUALSIASI-CODICE
+PASS: unrelated request untouched: HEAD /compara/QUALSIASI-CODICE
+PASS: unrelated request untouched: POST /compara/QUALSIASI-CODICE
+PASS: unrelated request untouched: OPTIONS /compara/QUALSIASI-CODICE
+PASS: unrelated request untouched: GET /compara/?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: unrelated request untouched: HEAD /compara/?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: unrelated request untouched: POST /compara/?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: unrelated request untouched: OPTIONS /compara/?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: unrelated request untouched: GET /compara/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: unrelated request untouched: HEAD /compara/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: unrelated request untouched: POST /compara/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: unrelated request untouched: OPTIONS /compara/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: unrelated request untouched: GET /
+PASS: unrelated request untouched: HEAD /
+PASS: unrelated request untouched: POST /
+PASS: unrelated request untouched: OPTIONS /
+PASS: unrelated request untouched: GET /wp-json/
+PASS: unrelated request untouched: HEAD /wp-json/
+PASS: unrelated request untouched: POST /wp-json/
+PASS: unrelated request untouched: OPTIONS /wp-json/
+PASS: unrelated request untouched: GET /go/child
+PASS: unrelated request untouched: HEAD /go/child
+PASS: unrelated request untouched: POST /go/child
+PASS: unrelated request untouched: OPTIONS /go/child
+PASS: unrelated request untouched: GET /go//
+PASS: unrelated request untouched: HEAD /go//
+PASS: unrelated request untouched: POST /go//
+PASS: unrelated request untouched: OPTIONS /go//
+PASS: unrelated request untouched: GET /gopher
+PASS: unrelated request untouched: HEAD /gopher
+PASS: unrelated request untouched: POST /gopher
+PASS: unrelated request untouched: OPTIONS /gopher
+PASS: unrelated request untouched: GET /GO/
+PASS: unrelated request untouched: HEAD /GO/
+PASS: unrelated request untouched: POST /GO/
+PASS: unrelated request untouched: OPTIONS /GO/
+PASS: exact path and method GET /go
+PASS: malformed query rejected: GET 
+PASS: malformed query rejected: GET ?id=
+PASS: malformed query rejected: GET ?id=short
+PASS: malformed query rejected: GET ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: malformed query rejected: GET ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: malformed query rejected: GET ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.
+PASS: malformed query rejected: GET ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&x=1
+PASS: malformed query rejected: GET ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: malformed query rejected: GET ?id[]=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: malformed query rejected: GET ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&
+PASS: malformed query rejected: GET ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA;x=1
+PASS: malformed query rejected: GET ?%69d=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: malformed query rejected: GET ?id=%41AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: malformed query rejected: GET ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA%0a
+PASS: malformed query rejected: GET ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&url=https://evil.org/
+PASS: exact path and method HEAD /go
+PASS: malformed query rejected: HEAD 
+PASS: malformed query rejected: HEAD ?id=
+PASS: malformed query rejected: HEAD ?id=short
+PASS: malformed query rejected: HEAD ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: malformed query rejected: HEAD ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: malformed query rejected: HEAD ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.
+PASS: malformed query rejected: HEAD ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&x=1
+PASS: malformed query rejected: HEAD ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: malformed query rejected: HEAD ?id[]=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: malformed query rejected: HEAD ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&
+PASS: malformed query rejected: HEAD ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA;x=1
+PASS: malformed query rejected: HEAD ?%69d=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: malformed query rejected: HEAD ?id=%41AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: malformed query rejected: HEAD ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA%0a
+PASS: malformed query rejected: HEAD ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&url=https://evil.org/
+PASS: method rejected before query: POST
+PASS: method rejected before query: POST
+PASS: method rejected before query: POST
+PASS: method rejected before query: PUT
+PASS: method rejected before query: PUT
+PASS: method rejected before query: PUT
+PASS: method rejected before query: DELETE
+PASS: method rejected before query: DELETE
+PASS: method rejected before query: DELETE
+PASS: method rejected before query: OPTIONS
+PASS: method rejected before query: OPTIONS
+PASS: method rejected before query: OPTIONS
+PASS: method rejected before query: PATCH
+PASS: method rejected before query: PATCH
+PASS: method rejected before query: PATCH
+PASS: exact path and method GET /go/
+PASS: malformed query rejected: GET 
+PASS: malformed query rejected: GET ?id=
+PASS: malformed query rejected: GET ?id=short
+PASS: malformed query rejected: GET ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: malformed query rejected: GET ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: malformed query rejected: GET ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.
+PASS: malformed query rejected: GET ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&x=1
+PASS: malformed query rejected: GET ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: malformed query rejected: GET ?id[]=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: malformed query rejected: GET ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&
+PASS: malformed query rejected: GET ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA;x=1
+PASS: malformed query rejected: GET ?%69d=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: malformed query rejected: GET ?id=%41AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: malformed query rejected: GET ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA%0a
+PASS: malformed query rejected: GET ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&url=https://evil.org/
+PASS: exact path and method HEAD /go/
+PASS: malformed query rejected: HEAD 
+PASS: malformed query rejected: HEAD ?id=
+PASS: malformed query rejected: HEAD ?id=short
+PASS: malformed query rejected: HEAD ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: malformed query rejected: HEAD ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: malformed query rejected: HEAD ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.
+PASS: malformed query rejected: HEAD ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&x=1
+PASS: malformed query rejected: HEAD ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: malformed query rejected: HEAD ?id[]=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: malformed query rejected: HEAD ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&
+PASS: malformed query rejected: HEAD ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA;x=1
+PASS: malformed query rejected: HEAD ?%69d=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: malformed query rejected: HEAD ?id=%41AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+PASS: malformed query rejected: HEAD ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA%0a
+PASS: malformed query rejected: HEAD ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&url=https://evil.org/
+PASS: method rejected before query: POST
+PASS: method rejected before query: POST
+PASS: method rejected before query: POST
+PASS: method rejected before query: PUT
+PASS: method rejected before query: PUT
+PASS: method rejected before query: PUT
+PASS: method rejected before query: DELETE
+PASS: method rejected before query: DELETE
+PASS: method rejected before query: DELETE
+PASS: method rejected before query: OPTIONS
+PASS: method rejected before query: OPTIONS
+PASS: method rejected before query: OPTIONS
+PASS: method rejected before query: PATCH
+PASS: method rejected before query: PATCH
+PASS: method rejected before query: PATCH
+PASS: unsafe stored destination cannot redirect
+PASS: unsafe stored destination cannot redirect
+PASS: unsafe stored destination cannot redirect
+PASS: unsafe stored destination cannot redirect
+PASS: unsafe stored destination cannot redirect
+PASS: unsafe stored destination cannot redirect
+PASS: unsafe stored destination cannot redirect
+PASS: unsafe stored destination cannot redirect
+PASS: idempotent retry
+PASS: private artifact contains fingerprints only
+PASS: ACK never exposes affiliate URLs
+PASS: codes are case sensitive
+PASS: DNS resolving to internal container address rejected
+PASS: invalid affiliate list rejected
+PASS: invalid affiliate list rejected
+PASS: invalid affiliate list rejected
+PASS: same hash cannot hide destination change
+PASS: update and insert destinations
+PASS: HEAD updated destination
+PASS: removed code revoked
+PASS: unknown code 404
+PASS: old payload cursor compatible
+PASS: old payload update preserves destinations
+PASS: legacy published product without destinations
+PASS: revoked code ownership and atomic rollback
+PASS: add associations to previously published product
+PASS: unsafe destination rejected: http://93.184.215.14/x
+PASS: unsafe destination rejected: https://localhost/x
+PASS: unsafe destination rejected: https://127.0.0.1/x
+PASS: unsafe destination rejected: https://10.0.0.1/x
+PASS: unsafe destination rejected: https://[::1]/x
+PASS: unsafe destination rejected: https://2130706433/x
+PASS: unsafe destination rejected: https://user:pass@93.184.215.14/x
+PASS: unsafe destination rejected: https://receiver.test/x
+PASS: unsafe destination rejected: https://sub.occhioaiprezzi.it/x
+PASS: unsafe destination rejected: https://93.184.215.14/xLocation: bad
+PASS: empty list revokes all product codes
+PASS: other product unaffected
+PASS: no WordPress posts created or duplicated
+PASS: one product per GTIN
+PASS: HTML CTA and slug preserved exactly
+PASS: affiliate destination absent from public HTML
+PASS: SQL failure rolls back revocation and product version
+Success: Affiliate suite complete
+PASS: real HTTP GET/HEAD 302, exact Location, no-store and no-referrer
+PASS: real HTTP revoked, unknown and malformed codes return 404
+PASS: both GTINs render local CTAs without affiliate URLs, no public destinations API
+PASS: HTTP strict queries, open redirect attempts, noindex and 405 Allow GET, HEAD
+PASS: 20 existing /compara responses identical with and without both Bridge hooks
+PASS: admin POST start
+PASS: GET cannot mutate start
+PASS: admin POST pause
+PASS: GET cannot mutate pause
+PASS: admin POST resume
+PASS: GET cannot mutate resume
+PASS: admin status
+PASS: invalid nonce denied
+PASS: editor denied with own nonce
+PASS: subscriber denied with own nonce
+PASS: anonymous denied
+PASS: no worker snapshot is unavailable
+PASS: cannot start without worker
+PASS: private poll rejects wrong/publication token
+PASS: private poll rejects wrong/publication token
+PASS: TLS required
+PASS: GET poll absent
+PASS: JSON required
+PASS: malformed JSON
+PASS: bounded request
+PASS: token bound to worker
+PASS: strict integer cursor
+PASS: protocol mismatch
+PASS: empty poll never starts
+PASS: admin persists intent, not success
+PASS: shared command contract
+PASS: lost AJAX response reuses intent
+PASS: same key different action rejected
+PASS: double click second key blocked
+PASS: command survives new store instance
+PASS: lost poll response redelivers identical command
+PASS: last_sequence does not imply ACK
+PASS: ACK must match pending identity
+PASS: applied ACK must match action
+PASS: admin cookie without bearer cannot ACK
+PASS: publication token cannot ACK
+PASS: receipt persisted before confirmation
+PASS: lost ACK response/reordered fields replay original confirmation
+PASS: changed receipt conflicts
+PASS: changed body with same hash conflicts
+PASS: historical receipt never overwrites poll snapshot
+PASS: confirmed command not redelivered
+PASS: old delayed double start blocked after ACK
+PASS: pause queued
+PASS: consecutive sequence
+PASS: pause ACK
+PASS: ACK requires subsequent fresh poll
+PASS: resume queued
+PASS: rejected/expired consumes sequence and persists
+PASS: historical ACK replay after later commands
+PASS: outage retains snapshot and marks stale
+PASS: outage disables new commands
+PASS: fresh receipt of old observation remains stale
+PASS: additive migration preserves commands and receipts
+PASS: VPS2 transient errors and awaiting counters accepted
+PASS: completed with terminal errors accepted
+PASS: extra fields rejected
+PASS: concurrent DB connection blocked
+PASS: transaction rolls back on crash
+PASS: legacy uncertainty preserved and blocked
+PASS: no WordPress to VPS2 HTTP
+PASS: product DB unchanged
+PASS: no browser secret or unsupported batch selector
+Success: Regeneration polling suite complete
+PASS: dedicated polling configuration missing
+PASS: dedicated polling configuration reused
+PASS: dedicated polling configuration invalid-token
+PASS: dedicated polling configuration invalid-worker
+PASS: dedicated polling configuration old-inbound
+PASS: dedicated polling configuration valid
+PASS: browser double click, same-key retry, pending commands, terminal progress, stale snapshot and continued polling
+regeneration_poll_failed
+PASS: real VPS2 poller + WordPress REST/admin AJAX: start/pause/resume, double click, lost ACK, restart, historical replay, identical counters, one campaign/three commands
+....................................................................     [100%]
+=============================== warnings summary ===============================
+.venv/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /workspace/work/vps-ponte/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+68 passed, 1 warning in 4.45s

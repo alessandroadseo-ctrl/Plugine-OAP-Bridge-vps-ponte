@@ -15,3 +15,6 @@ python3 "$here/affiliates_http.py"
 python3 "$here/compara_http.py"
 
 docker exec oap-receiver-php wp --allow-root eval-file wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/regeneration.php
+for mode in missing reused invalid-token invalid-worker old-inbound valid; do
+  docker exec oap-receiver-php wp --allow-root eval-file wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/regeneration-config.php "$mode"
+done
