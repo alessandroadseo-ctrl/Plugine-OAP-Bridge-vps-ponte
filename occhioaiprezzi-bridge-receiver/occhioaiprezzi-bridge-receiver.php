@@ -2,13 +2,13 @@
 /**
  * Plugin Name: OcchioAiPrezzi Bridge Receiver
  * Description: Ricevitore privato oap-wp-1, indice dedicato e artefatti statici.
- * Version: 1.3.2
+ * Version: 1.4.0
  * Requires at least: 6.6
  * Requires PHP: 8.1
  * License: GPL-2.0-or-later
  */
 defined('ABSPATH') || exit;
-foreach (['support', 'auth', 'storage', 'product-pages', 'rest-api', 'seo', 'admin', 'affiliate-redirects'] as $part) {
+foreach (['support', 'auth', 'storage', 'product-pages', 'rest-api', 'seo', 'admin', 'affiliate-redirects', 'regeneration-client', 'regeneration-admin'] as $part) {
     require_once __DIR__ . '/includes/class-' . $part . '.php';
 }
 register_activation_hook(__FILE__, ['OAP_Storage', 'activate']);
