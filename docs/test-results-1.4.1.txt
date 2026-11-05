@@ -181,7 +181,7 @@ PASS: unrelated request untouched: HEAD /GO/
 PASS: unrelated request untouched: POST /GO/
 PASS: unrelated request untouched: OPTIONS /GO/
 PASS: exact path and method GET /go
-PASS: malformed query rejected: GET 
+PASS: malformed query rejected: GET
 PASS: malformed query rejected: GET ?id=
 PASS: malformed query rejected: GET ?id=short
 PASS: malformed query rejected: GET ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
@@ -197,7 +197,7 @@ PASS: malformed query rejected: GET ?id=%41AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 PASS: malformed query rejected: GET ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA%0a
 PASS: malformed query rejected: GET ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&url=https://evil.org/
 PASS: exact path and method HEAD /go
-PASS: malformed query rejected: HEAD 
+PASS: malformed query rejected: HEAD
 PASS: malformed query rejected: HEAD ?id=
 PASS: malformed query rejected: HEAD ?id=short
 PASS: malformed query rejected: HEAD ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
@@ -228,7 +228,7 @@ PASS: method rejected before query: PATCH
 PASS: method rejected before query: PATCH
 PASS: method rejected before query: PATCH
 PASS: exact path and method GET /go/
-PASS: malformed query rejected: GET 
+PASS: malformed query rejected: GET
 PASS: malformed query rejected: GET ?id=
 PASS: malformed query rejected: GET ?id=short
 PASS: malformed query rejected: GET ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
@@ -244,7 +244,7 @@ PASS: malformed query rejected: GET ?id=%41AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 PASS: malformed query rejected: GET ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA%0a
 PASS: malformed query rejected: GET ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&url=https://evil.org/
 PASS: exact path and method HEAD /go/
-PASS: malformed query rejected: HEAD 
+PASS: malformed query rejected: HEAD
 PASS: malformed query rejected: HEAD ?id=
 PASS: malformed query rejected: HEAD ?id=short
 PASS: malformed query rejected: HEAD ?id=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
