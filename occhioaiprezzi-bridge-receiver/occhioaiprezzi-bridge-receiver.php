@@ -8,11 +8,13 @@
  * License: GPL-2.0-or-later
  */
 defined('ABSPATH') || exit;
-foreach (['support', 'auth', 'storage', 'product-pages', 'rest-api', 'seo', 'admin', 'affiliate-redirects', 'regeneration-client', 'regeneration-store', 'regeneration-rest', 'regeneration-admin'] as $part) {
+foreach (['support', 'auth', 'storage', 'product-pages', 'rest-api', 'seo', 'admin', 'affiliate-redirects', 'regeneration-client', 'regeneration-store', 'regeneration-rest', 'regeneration-admin', 'media'] as $part) {
     require_once __DIR__ . '/includes/class-' . $part . '.php';
 }
 register_activation_hook(__FILE__, ['OAP_Storage', 'activate']);
 add_action('rest_api_init', ['OAP_REST_API', 'register']);
+add_action('rest_api_init', ['OAP_Media', 'register']);
+add_action('template_redirect', ['OAP_Media', 'serve'], -120);
 add_action('template_redirect', ['OAP_Affiliate_Redirects', 'serve'], -110);
 add_action('template_redirect', ['OAP_SEO', 'serve'], -100);
 add_action('wp_sitemaps_init', static function ($server) {
