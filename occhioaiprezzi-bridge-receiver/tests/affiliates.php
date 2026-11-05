@@ -13,7 +13,7 @@ function affiliate_req(array $p) {
 function affiliate_bundle($gtin, $code) {
     $slug = 'affiliate-test-' . $gtin;
     return ['protocol'=>'oap-wp-1', 'gtin'=>$gtin, 'slug'=>$slug, 'version'=>1, 'content_hash'=>str_repeat('a',64),
-        'html'=>'<article><h1>Test</h1><a href="' . home_url('/go/?id=' . $code) . '" rel="sponsored nofollow">Confronta</a></article>',
+        'html'=>'<article><h1>Test</h1><a href="' . home_url('/go/?id=' . $code) . '" target="_blank" rel="noopener noreferrer sponsored nofollow">Confronta</a></article>',
         'seo'=>['title'=>'Test','canonical'=>OAP_Support::canonical($slug),'indexable'=>true,'modified_at'=>1700000000],
         'state'=>'active','redirects'=>[],'removal_policy'=>'temporary','operation'=>'create'];
 }
