@@ -5,10 +5,12 @@ final class OAP_Storage {
     public string $pages;
     public string $slugs;
     public string $affiliates;
+    public string $tombstones;
     public function __construct() {
         global $wpdb;
         $this->handle = $wpdb->dbh;
         if (!$this->handle instanceof mysqli) { throw new OAP_Failure('oap_database_unsupported', 503); }
+        $this->tombstones = $wpdb->prefix . 'oap_tombstones';
         $this->affiliates = $wpdb->prefix . 'oap_affiliate_destinations';
         $this->pages = $wpdb->prefix . 'oap_pages'; $this->slugs = $wpdb->prefix . 'oap_slugs';
     }
@@ -16,6 +18,12 @@ final class OAP_Storage {
         global $wpdb;
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         $collate = $wpdb->get_charset_collate();
+        dbDelta("CREATE TABLE {$wpdb->prefix}oap_tombstones (
+            gtin char(14) NOT NULL,
+            version bigint unsigned NOT NULL,
+            slug varchar(180) NOT NULL,
+            PRIMARY KEY  (gtin)
+        ) ENGINE=InnoDB $collate;");
         dbDelta("CREATE TABLE {$wpdb->prefix}oap_pages (
             gtin char(14) NOT NULL,
             owner varchar(32) NOT NULL,
@@ -66,12 +74,16 @@ final class OAP_Storage {
         global $wpdb;
         return $this->one($wpdb->prepare("SELECT * FROM `{$this->pages}` WHERE gtin=%s", $gtin));
     }
+    public function tombstone(string $gtin): ?array {
+        global $wpdb;
+        return $this->one($wpdb->prepare("SELECT * FROM `{$this->tombstones}` WHERE gtin=%s", $gtin));
+    }
     public function locked(callable $fn) {
         global $wpdb;
         // Serialize identity and slug claims; posts READ protects native ownership.
         // No WooCommerce inventory or postmeta locks are required.
         // Both custom tables must be transactional; no WP hooks run in this scope.
-        foreach ([$this->pages, $this->slugs, $this->affiliates] as $table) {
+        foreach ([$this->pages, $this->slugs, $this->affiliates, $this->tombstones] as $table) {
             $engine = $this->one($wpdb->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=%s', $table));
             if (($engine['ENGINE'] ?? '') !== 'InnoDB') { throw new OAP_Failure('oap_database_unsupported', 503); }
         }
@@ -81,7 +93,7 @@ final class OAP_Storage {
         $this->query('SET SESSION lock_wait_timeout=5');
         $this->query('SET autocommit=0');
         try {
-            $this->query("LOCK TABLES `{$wpdb->posts}` READ, `{$this->pages}` WRITE, `{$this->slugs}` WRITE, `{$this->affiliates}` WRITE");
+            $this->query("LOCK TABLES `{$wpdb->posts}` READ, `{$wpdb->postmeta}` READ, `{$this->tombstones}` WRITE, `{$this->pages}` WRITE, `{$this->slugs}` WRITE, `{$this->affiliates}` WRITE");
             $locked = true;
             $result = $fn($this);
             $this->query('COMMIT');

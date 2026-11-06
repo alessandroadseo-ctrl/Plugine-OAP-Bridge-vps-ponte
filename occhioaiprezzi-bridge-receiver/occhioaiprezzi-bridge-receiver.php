@@ -2,13 +2,13 @@
 /**
  * Plugin Name: OcchioAiPrezzi Bridge Receiver
  * Description: Ricevitore privato oap-wp-1, indice dedicato e artefatti statici.
- * Version: 1.4.1
+ * Version: 1.5.0
  * Requires at least: 6.6
  * Requires PHP: 8.1
  * License: GPL-2.0-or-later
  */
 defined('ABSPATH') || exit;
-foreach (['support', 'auth', 'storage', 'product-pages', 'rest-api', 'seo', 'admin', 'affiliate-redirects', 'regeneration-client', 'regeneration-store', 'regeneration-rest', 'regeneration-admin', 'media'] as $part) {
+foreach (['support', 'auth', 'storage', 'product-pages', 'rest-api', 'seo', 'admin', 'affiliate-redirects', 'regeneration-client', 'regeneration-store', 'regeneration-rest', 'regeneration-admin', 'media', 'deletion'] as $part) {
     require_once __DIR__ . '/includes/class-' . $part . '.php';
 }
 register_activation_hook(__FILE__, ['OAP_Storage', 'activate']);
@@ -31,11 +31,11 @@ add_action('admin_menu', ['OAP_Admin', 'register']);
 
 // Activation hooks do not run on plugin updates. Only additive dbDelta schema changes.
 add_action('plugins_loaded', static function () {
-    if (get_option('oap_bridge_schema_version') !== '1.3.0') {
+    if (get_option('oap_bridge_schema_version') !== '1.5.0') {
         OAP_Storage::activate();
         global $wpdb;
-        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($wpdb->prefix . 'oap_affiliate_destinations'))) === $wpdb->prefix . 'oap_affiliate_destinations') {
-            update_option('oap_bridge_schema_version', '1.3.0', false);
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($wpdb->prefix . 'oap_tombstones'))) === $wpdb->prefix . 'oap_tombstones') {
+            update_option('oap_bridge_schema_version', '1.5.0', false);
         }
     }
 });

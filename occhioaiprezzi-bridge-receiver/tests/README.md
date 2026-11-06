@@ -36,3 +36,8 @@ al commit fissato contro REST e AJAX WordPress reali; eseguirlo dopo `run.sh`,
 usando il Python dell'ambiente frozen di vps-ponte e passando il percorso del clone.
 Non eseguire contemporaneamente suite che cambiano il wp-config di test.
 Vedere [docs-regeneration.md](../docs-regeneration.md) per comandi e limiti.
+
+Versione 1.5.0: `deletion.php` e `deletion_http.py`, incluse in `run.sh`, verificano
+cancellazione fisica, tombstone minimo, retry e pulizia recuperabile, eventi vecchi,
+owner estranei, immagini condivise/protette/native, canonical/sitemap, cache,
+GET/HEAD 410 senza contenuti e redirect, autenticazione, 405 e ripubblicazione.

@@ -105,6 +105,9 @@ final class OAP_Product_Pages {
         $result = $db->locked(static function ($db) use ($p, $gtin, $wpdb) {
             $row = $db->page($gtin);
             self::ack($gtin, $row);
+            $tombstone = $db->tombstone($gtin);
+            if ($tombstone && $p['version'] <= (int)$tombstone['version']) { throw new OAP_Failure('oap_remote_ahead', 409); }
+
             if ($row && $p['version'] < (int)$row['version']) { throw new OAP_Failure('oap_remote_ahead', 409); }
             if ($row && $p['version'] === (int)$row['version']) {
                 if (!hash_equals($row['installed_hash'], $p['content_hash'])) { throw new OAP_Failure('oap_version_conflict', 409); }
@@ -112,7 +115,8 @@ final class OAP_Product_Pages {
                 return self::ack($gtin, $row, 'unchanged');
             }
             if ($p['operation'] === 'create' && $row) { throw new OAP_Failure('oap_page_exists', 409); }
-            if ($p['operation'] === 'update' && !$row) { throw new OAP_Failure('oap_page_absent', 409); }
+            if ($tombstone && $p['state'] !== 'active') { throw new OAP_Failure('oap_product_deleted', 409); }
+            if ($p['operation'] === 'update' && !$row && !$tombstone) { throw new OAP_Failure('oap_page_absent', 409); }
             if ($row && hash_equals($row['installed_hash'], $p['content_hash'])) {
                 self::same_document($p, $row);
                 $db->query($wpdb->prepare("UPDATE `{$db->pages}` SET version=%d WHERE gtin=%s", $p['version'], $gtin));
@@ -133,7 +137,7 @@ final class OAP_Product_Pages {
             foreach ($slugs as $slug) {
                 $db->query($wpdb->prepare("INSERT INTO `{$db->slugs}` (slug,gtin) VALUES (%s,%s) ON DUPLICATE KEY UPDATE gtin=VALUES(gtin)", $slug, $gtin));
             }
-            if ($p['operation'] === 'create') {
+            if (!$row) {
                 $db->query($wpdb->prepare("INSERT INTO `{$db->pages}` (gtin,owner,version,installed_hash,slug,artifact,state,indexable,modified_at)
                     VALUES (%s,'oap-wp-1',%d,%s,%s,%s,%s,%d,%d)",
                     $gtin,$p['version'],$p['content_hash'],$p['slug'],$artifact,$p['state'],$p['seo']['indexable']?1:0,$p['seo']['modified_at']));
@@ -142,7 +146,8 @@ final class OAP_Product_Pages {
                     WHERE gtin=%s AND owner='oap-wp-1'",
                     $p['version'],$p['content_hash'],$p['slug'],$artifact,$p['state'],$p['seo']['indexable']?1:0,$p['seo']['modified_at'],$gtin));
             }
-            return self::ack($gtin, $db->page($gtin), $p['operation'] === 'create' ? 'created' : 'updated');
+            $db->query($wpdb->prepare("DELETE FROM `{$db->tombstones}` WHERE gtin=%s", $gtin));
+            return self::ack($gtin, $db->page($gtin), !$row ? 'created' : 'updated');
         });
         if (in_array($result['operation'], ['created','updated'], true)) {
             // Integrate site-specific CDN invalidation without a full-catalog purge.

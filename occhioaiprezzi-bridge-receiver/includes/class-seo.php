@@ -49,9 +49,18 @@ final class OAP_SEO {
             $db = new OAP_Storage();
             $claim = $db->one($wpdb->prepare("SELECT gtin FROM `{$db->slugs}` WHERE slug=%s", $slug));
             if (!$claim) { return; }
+            if ($db->tombstone($claim['gtin'])) {
+                // No theme, old HTML, SEO, canonical or redirect survives deletion.
+                status_header(410); nocache_headers();
+                header('X-Robots-Tag: noindex, nofollow');
+                header('Content-Type: text/plain; charset=UTF-8');
+                if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'HEAD') { echo 'Gone'; }
+                exit;
+            }
             $row = $db->page($claim['gtin']);
             if (!$row || $row['owner'] !== 'oap-wp-1') { return; }
             $bundle = OAP_Storage::read($row['artifact']);
+            $bundle['seo']['canonical'] = OAP_Deletion::canonical($db, $bundle['seo']['canonical'], $row['slug']);
             // Historical claims reserve ownership, but only VPS-supplied aliases redirect.
             if ($slug !== $row['slug'] && !in_array($slug, $bundle['redirects'], true)) { return; }
             $active = self::public_row($row);
