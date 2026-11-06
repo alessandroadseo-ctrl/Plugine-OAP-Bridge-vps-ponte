@@ -54,3 +54,6 @@ Il pannello amministrativo accoda comandi persistenti; VPS2 legge e conferma via
 REST privato con il protocollo condiviso `oap-regeneration-poll-1`.
 Vedere [configurazione, contratto, aggiornamento e rollback](docs-regeneration.md).
 Nessuna connessione WordPress → VPS2 è richiesta.
+
+Cancellazione definitiva autenticata e versionata (1.5.0): vedere
+[contratto DELETE, protezioni media e integrazione VPS2](docs/deletion.md).

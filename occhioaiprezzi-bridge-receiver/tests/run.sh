@@ -18,3 +18,6 @@ docker exec oap-receiver-php wp --allow-root eval-file wp-content/plugins/occhio
 for mode in missing reused invalid-token invalid-worker old-inbound valid; do
   docker exec oap-receiver-php wp --allow-root eval-file wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/regeneration-config.php "$mode"
 done
+
+docker exec oap-receiver-php wp --allow-root eval-file wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/deletion.php
+python3 "$here/deletion_http.py"
