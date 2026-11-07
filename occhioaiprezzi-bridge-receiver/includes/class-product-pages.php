@@ -15,11 +15,11 @@ final class OAP_Product_Pages {
         OAP_Support::slug($p['slug']);
         foreach ($p['redirects'] as $s) { OAP_Support::slug($s); }
         $p['redirects'] = array_values(array_unique($p['redirects']));
-        if (str_contains($p['html'], '<?')) { throw new OAP_Failure('oap_unsafe_html'); }
+        if (str_contains($p['html'], '<?')) { throw new OAP_Failure('oap_unsafe_html', 400, ['rule'=>'php_open_tag']); }
         $processor = new WP_HTML_Tag_Processor($p['html']);
         while ($processor->next_tag()) {
             if (in_array($processor->get_tag(), ['SCRIPT','STYLE','IFRAME','OBJECT','EMBED','SVG','MATH','FORM','INPUT','LINK','META','BASE'], true)
-                || $processor->get_attribute_names_with_prefix('on')) { throw new OAP_Failure('oap_unsafe_html'); }
+                || $processor->get_attribute_names_with_prefix('on')) { throw new OAP_Failure('oap_unsafe_html', 400, ['rule'=>'forbidden_element_or_event_handler']); }
             foreach (['href', 'src'] as $attr) {
                 $url = $processor->get_attribute($attr);
                 if ($url !== null) { OAP_Support::url($url); }
@@ -32,7 +32,15 @@ final class OAP_Product_Pages {
         $allowed['a'] = ['href'=>true,'rel'=>true,'title'=>true,'target'=>true];
         $allowed['img'] = ['src'=>true,'alt'=>true,'loading'=>true,'width'=>true,'height'=>true];
         // Validate without rewriting the VPS document. Reject unsupported markup.
-        if (wp_kses($p['html'], $allowed, ['http','https']) !== $p['html']) { throw new OAP_Failure('oap_unsafe_html'); }
+        $clean = wp_kses($p['html'], $allowed, ['http','https']);
+        if ($clean !== $p['html']) {
+            $offset = 0; $limit = min(strlen($clean), strlen($p['html']));
+            while ($offset < $limit && $clean[$offset] === $p['html'][$offset]) { ++$offset; }
+            $quotes = str_replace(['&#34;', '&#39;'], ['&#034;', '&#039;'], $p['html']);
+            throw new OAP_Failure('oap_unsafe_html', 400, [
+                'rule'=>$quotes !== $p['html'] && $clean === $quotes ? 'short_decimal_quote_entities' : 'kses_changed',
+                'first_difference_byte'=>$offset]);
+        }
         $seo = $p['seo'];
         if (!isset($seo['indexable'], $seo['modified_at']) || !is_bool($seo['indexable']) || !is_int($seo['modified_at']) || $seo['modified_at'] < 0
             || (isset($seo['gtin']) && $seo['gtin'] !== $gtin)) { throw new OAP_Failure('oap_invalid_seo'); }
@@ -98,6 +106,28 @@ final class OAP_Product_Pages {
         return ['gtin'=>$gtin, 'version'=>$row ? (int)$row['version'] : 0, 'installed_hash'=>$row['installed_hash'] ?? '',
             'remote_id'=>$row ? 'oap:' . $gtin : '', 'ownership'=>$row ? 'bridge' : 'absent', 'operation'=>$row ? $operation : 'absent'];
     }
+    /** Read-only preflight; also called inside the PUT transaction before any artifact write.
+     * Never returns native post IDs, titles, content, status or actual slug values.
+     */
+    public static function check_slugs(OAP_Storage $db, string $gtin, array $slugs): array {
+        global $wpdb;
+        if (!array_is_list($slugs) || count($slugs) < 1 || count($slugs) > 501) {
+            throw new OAP_Failure('oap_invalid_slug');
+        }
+        foreach ($slugs as $slug) { OAP_Support::slug($slug); }
+        foreach ($slugs as $index=>$slug) {
+            $details = ['slug_role'=>$index === 0 ? 'primary' : 'redirect', 'slug_index'=>$index];
+            $claim = $db->one($wpdb->prepare("SELECT gtin FROM `{$db->slugs}` WHERE slug=%s", $slug));
+            if ($claim && $claim['gtin'] !== $gtin) {
+                throw new OAP_Failure('oap_slug_conflict', 409, array_merge($details, ['rule'=>'bridge_slug', 'ownership'=>'other_bridge']));
+            }
+            // Same conservative native-content rule for primary and historical slugs.
+            if ($db->one($wpdb->prepare("SELECT ID FROM `{$wpdb->posts}` WHERE post_name=%s AND post_type NOT IN ('revision','attachment') LIMIT 1", $slug))) {
+                throw new OAP_Failure('oap_foreign_page', 409, array_merge($details, ['rule'=>'native_slug', 'ownership'=>'native']));
+            }
+        }
+        return $slugs;
+    }
     public static function put(array $p, string $gtin): array {
         global $wpdb;
         if (OAP_Support::cfg('OAP_BRIDGE_WRITES_ENABLED', false) !== true) { throw new OAP_Failure('oap_writes_disabled', 503); }
@@ -123,15 +153,7 @@ final class OAP_Product_Pages {
                 $row['version'] = $p['version'];
                 return self::ack($gtin, $row, 'cursor_advanced');
             }
-            $slugs = array_values(array_unique(array_merge($p['redirects'], [$p['slug']])));
-            foreach ($slugs as $slug) {
-                $claim = $db->one($wpdb->prepare("SELECT gtin FROM `{$db->slugs}` WHERE slug=%s", $slug));
-                if ($claim && $claim['gtin'] !== $gtin) { throw new OAP_Failure('oap_slug_conflict', 409); }
-                // Fail closed on native content; receiver never assumes ownership of posts.
-                if ($db->one($wpdb->prepare("SELECT ID FROM `{$wpdb->posts}` WHERE post_name=%s AND post_type NOT IN ('revision','attachment') LIMIT 1", $slug))) {
-                    throw new OAP_Failure('oap_foreign_page', 409);
-                }
-            }
+            $slugs = self::check_slugs($db, $gtin, array_values(array_unique(array_merge([$p['slug']], $p['redirects']))));
             $artifact = OAP_Storage::artifact(self::private_snapshot($p));
             if (array_key_exists('affiliate_destinations', $p)) { $db->sync_affiliates($gtin, $p['affiliate_destinations']); }
             foreach ($slugs as $slug) {
