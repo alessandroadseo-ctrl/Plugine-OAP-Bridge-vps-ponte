@@ -22,6 +22,14 @@ final class OAP_REST_API {
             } else {
                 $db = new OAP_Storage(); $tombstone = $db->tombstone($gtin);
                 $result = $tombstone ? OAP_Deletion::ack($tombstone) : OAP_Product_Pages::ack($gtin, $db->page($gtin));
+                $query = $r->get_query_params();
+                if (array_key_exists('slugs', $query)) {
+                    if (!is_string($query['slugs']) || strlen($query['slugs']) > 100000) { throw new OAP_Failure('oap_invalid_slug'); }
+                    $slugs = json_decode($query['slugs'], true, 4, JSON_THROW_ON_ERROR);
+                    if (!is_array($slugs)) { throw new OAP_Failure('oap_invalid_slug'); }
+                    OAP_Product_Pages::check_slugs($db, $gtin, $slugs);
+                    $result['slug_preflight'] = ['clear'=>true, 'count'=>count($slugs)];
+                }
             }
             $response = new WP_REST_Response($result, ($result['operation'] ?? '') === 'created' ? 201 : 200);
             $response->header('Cache-Control','no-store, private'); return $response;

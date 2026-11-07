@@ -2,8 +2,9 @@
 defined('ABSPATH') || exit;
 final class OAP_Failure extends RuntimeException {
     public int $status;
-    public function __construct(string $code, int $status = 400) {
-        parent::__construct($code); $this->status = $status;
+    public array $diagnostics;
+    public function __construct(string $code, int $status = 400, array $diagnostics = []) {
+        parent::__construct($code); $this->status = $status; $this->diagnostics = $diagnostics;
     }
 }
 final class OAP_Support {
@@ -45,6 +46,6 @@ final class OAP_Support {
     }
     public static function error(Throwable $e): WP_Error {
         return new WP_Error($e instanceof OAP_Failure ? $e->getMessage() : 'oap_unavailable', 'OAP Bridge: richiesta non completata.',
-            ['status' => $e instanceof OAP_Failure ? $e->status : 503]);
+            array_merge($e instanceof OAP_Failure ? $e->diagnostics : [], ['status' => $e instanceof OAP_Failure ? $e->status : 503]));
     }
 }
