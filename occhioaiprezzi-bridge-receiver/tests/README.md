@@ -8,9 +8,9 @@ php occhioaiprezzi-bridge-receiver/tests/validate-html.php /percorso/wordpress
 
 Usa KSES e il parser HTML reali di WordPress, senza caricare `wp-config.php`,
 aprire connessioni al database o avviare REST. La fixture `vps2-shipping.html`
-estende quella VPS2 esistente con il markup segnalato: pulsante con `type`,
+è generata dal template VPS2 attuale con lista interna: pulsante con `type`,
 `aria-pressed`, `disabled="disabled"` e righe `div` con i tre `data-oap-*`,
-anche con spedizione/totale vuoti. Verifica identità dell'intero payload,
+con spedizione gratuita, a pagamento e ignota (attributi omessi). Verifica identità dell'intero payload,
 compatibilità precedente e rifiuto di script, eventi, attributi estranei,
 URL pericolosi e normalizzazioni KSES. La stessa regressione è inclusa nella
 suite di integrazione.
@@ -59,16 +59,16 @@ GET/HEAD 410 senza contenuti e redirect, autenticazione, 405 e ripubblicazione.
 
 ## Toggle «Includi spedizione»
 
-Contratto VPS2 concordato (fixture `fixtures/shipping-toggle.html`): nella sezione
+Contratto VPS2 attuale (fixture `fixtures/shipping-toggle.html`): nella sezione
 `.oap-bridge-offers`, prima delle righe, inserire
-`<button type="button" class="oap-bridge-shipping-toggle" aria-pressed="false">Includi spedizione</button>`.
+`<button type="button" class="oap-bridge-shipping-toggle" aria-pressed="false" disabled="disabled">Includi spedizione</button>`.
 Ogni `div.oap-bridge-offer-row` espone `data-oap-price="8.99"`; per spedizioni note
 espone anche `data-oap-shipping="5.00"` e `data-oap-total="13.99"`. Per spedizione
 ignota omettere entrambi gli ultimi attributi. Valori decimali non negativi con
 punto e due cifre, in euro; il totale deve coincidere con prezzo più spedizione.
 Conservare la struttura del prezzo principale `.oap-bridge-price > p:first-child > strong`,
-merchant `.oap-bridge-merchant` e CTA `.oap-bridge-offer`. Le righe sono figlie dirette
-della sezione e arrivano ordinate per prezzo prodotto. Attributi estranei restano
+merchant `.oap-bridge-merchant` e CTA `.oap-bridge-offer`. Le righe sono figlie dirette della lista interna
+`.oap-bridge-offer-list`, figlia della sezione e arrivano ordinate per prezzo prodotto. Attributi estranei restano
 vietati; `aria-pressed` è autorizzato esclusivamente sul pulsante dedicato, con
 valore iniziale `false`. Nessuna wildcard `data-*` o `aria-*`.
 
@@ -96,10 +96,20 @@ loghi/descrizioni, 1 e 100 offerte, dati invalidi/incompleti/incoerenti, vecchio
 assenza di richieste HTTP e isolamento tra prodotti e markup esterno.
 La preferenza non viene memorizzata. Una sezione incompleta resta statica.
 
-Verifica locale 2026-11-08: suite PHP (29 verifiche), suite HTTP dedicata, suite
-Chromium, regressioni esistenti `unsafe-html.php` e `http_client.py`, lint PHP e
-`git diff --check` superati su WordPress 6.8.3, PHP 8.3 e MariaDB 11.4.
-La suite completa con WooCommerce non è stata eseguita: il download del pacchetto
-WooCommerce dal setup ha restituito HTTP 504 due volte; i test dedicati sono stati
-eseguiti su un setup isolato equivalente senza WooCommerce. Il nuovo contratto è
-verificato sulla fixture concordata, senza attendere o modificare il deploy VPS2.
+Verifica mirata 2026-11-08: Chromium e validazione byte-identica con WordPress
+6.8.3 reale e PHP 8.4.24 superati; nessun database caricato. La suite REST/DB e
+WooCommerce non è stata eseguita in questo intervento per evitare scritture di
+prodotti. Nessuna chiamata HTTP aggiunta al codice del plugin.
+
+Le due fixture shipping sono generate dallo stesso template di vps-ponte main,
+commit `28978cd475469e999abf53682742290c96902ea0`, senza modificare VPS2:
+
+```sh
+python3 tests/generate-shipping-fixtures.py /percorso/vps-ponte
+```
+
+Richiede Jinja2; eseguire dalla directory del plugin. Il generatore riproduce i
+filtri monetari e la normalizzazione delle entità del renderer reale. Il browser
+verifica anche ripristino esatto del DOM iniziale dopo l'abilitazione del pulsante,
+totali informativi nascosti quando usati nel prezzo principale e MutationObserver
+che vieta ogni inserimento di righe fuori dalla lista interna.

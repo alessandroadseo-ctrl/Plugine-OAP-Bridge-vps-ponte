@@ -17,9 +17,11 @@ const source = fs.readFileSync(__dirname + '/../assets/offer-shipping-toggle.js'
             await page.evaluate(() => {
                 window.originalRows = Array.from(document.querySelectorAll('.oap-product .oap-bridge-offer-row'));
                 window.originalLinks = originalRows.map(row => row.querySelector('a')?.outerHTML);
-                window.originalDetails = originalRows.map(row => Array.from(row.querySelectorAll('img, .oap-bridge-merchant strong, .oap-bridge-merchant > p:not(.oap-bridge-best), .oap-bridge-price > p:not(:first-child)')).map(n => n.outerHTML));
+                window.originalDetails = originalRows.map(row => Array.from(row.querySelectorAll('img, .oap-bridge-merchant strong, .oap-bridge-merchant > p:not(.oap-bridge-best), .oap-bridge-price > p:not(:first-child)')).map(n => { const c=n.cloneNode(true); c.removeAttribute('hidden'); return c.outerHTML; }));
+                window.parents = originalRows.map(r => r.parentNode);
                 window.moves = 0;
-                window.observer = new MutationObserver(records => { window.moves += records.filter(r => r.target.matches?.('.oap-bridge-offers') && Array.from(r.addedNodes).some(n => n.matches?.('.oap-bridge-offer-row'))).length; });
+                window.escapedRows = 0;
+                window.observer = new MutationObserver(records => { window.escapedRows += records.filter(r => Array.from(r.addedNodes).some(n => n.matches?.('.oap-bridge-offer-row')) && !r.target.matches?.('.oap-bridge-offer-list')).length; window.moves += records.filter(r => r.target.matches?.('.oap-bridge-offer-list') && Array.from(r.addedNodes).some(n => n.matches?.('.oap-bridge-offer-row'))).length; });
                 observer.observe(document.body, {childList:true,subtree:true});
                 window.networkCalls = 0;
                 window.fetch = () => { networkCalls++; throw new Error('unexpected fetch'); };
@@ -37,9 +39,12 @@ const source = fs.readFileSync(__dirname + '/../assets/offer-shipping-toggle.js'
                 cta:rows.filter(r => r.querySelector('.oap-bridge-offer-best')).map(r => r.getAttribute('data-oap-price')),
                 pressed:root.querySelector('button')?.getAttribute('aria-pressed')};
         });
-        const preserved = async () => assert.equal(await page.evaluate(() => originalRows.every((r,i) => r.isConnected &&
+        const preserved = async () => {
+            assert.equal(await page.evaluate(()=>escapedRows), 0, 'rows never added outside the internal list');
+            assert.equal(await page.evaluate(() => originalRows.every((r,i) => r.isConnected && r.parentNode === parents[i] &&
             r.querySelector('a')?.outerHTML === originalLinks[i] &&
-            JSON.stringify(Array.from(r.querySelectorAll('img, .oap-bridge-merchant strong, .oap-bridge-merchant > p:not(.oap-bridge-best), .oap-bridge-price > p:not(:first-child)')).map(n=>n.outerHTML)) === JSON.stringify(originalDetails[i]))), true, 'same nodes, exact affiliate href/target/rel, logos, descriptions, shipping and totals');
+            JSON.stringify(Array.from(r.querySelectorAll('img, .oap-bridge-merchant strong, .oap-bridge-merchant > p:not(.oap-bridge-best), .oap-bridge-price > p:not(:first-child)')).map(n=>{ const c=n.cloneNode(true); c.removeAttribute('hidden'); return c.outerHTML; })) === JSON.stringify(originalDetails[i]))), true, 'same nodes, exact affiliate href/target/rel, logos, descriptions, shipping and totals');
+        };
         const outside = fixture.replace('class="oap-product"', 'id="outside"') + '<div id="legacy">' + legacy + '</div>';
         await load(fixture + outside + fixture);
         const untouched = await page.locator('#outside').evaluate(n=>n.outerHTML);
@@ -47,15 +52,18 @@ const source = fs.readFileSync(__dirname + '/../assets/offer-shipping-toggle.js'
         assert.equal(await page.evaluate(()=>moves), 0, 'no initial reorder');
         assert.deepEqual(await state(), {order:['7.99','8.99','9.99'],prices:['7,99 €','8,99 €','9,99 €'],best:['7.99'],cta:['7.99'],pressed:'false'});
         // Native button keyboard activation also updates assistive technology state.
+        const initial = await page.locator('.oap-product').first().evaluate(n=>n.outerHTML);
         const button = page.locator('.oap-product button').first();
         await button.focus();
         for (let cycle=0; cycle<3; cycle++) {
             await page.keyboard.press(cycle % 2 ? 'Space' : 'Enter');
             assert.deepEqual(await state(), {order:['9.99','8.99','7.99'],prices:['9,99 €','13,99 €','7,99 €'],best:['9.99'],cta:['9.99'],pressed:'true'});
             await preserved();
+            assert.equal(await page.locator('.oap-product').first().locator('.oap-bridge-total:not([hidden])').count(), 0);
             await page.keyboard.press('Space');
             assert.deepEqual(await state(), {order:['7.99','8.99','9.99'],prices:['7,99 €','8,99 €','9,99 €'],best:['7.99'],cta:['7.99'],pressed:'false'});
         }
+        assert.equal(await page.locator('.oap-product').first().evaluate(n=>n.outerHTML), initial, 'exact initial DOM restored');
         assert.equal(await page.locator('#outside').evaluate(n=>n.outerHTML), untouched);
         assert.equal(await page.locator('#legacy').evaluate(n=>n.outerHTML), untouchedLegacy);
         assert.equal(await page.locator('.oap-product').last().locator('button').getAttribute('aria-pressed'), 'false', 'products independent');
@@ -67,12 +75,14 @@ const source = fs.readFileSync(__dirname + '/../assets/offer-shipping-toggle.js'
             await page.setContent(fixture);
             return page.evaluate(({count,unknown}) => {
                 const root = document.querySelector('.oap-product');
-                const offers = root.querySelector('.oap-bridge-offers');
+                const offers = root.querySelector('.oap-bridge-offer-list');
                 const template = offers.querySelector('.oap-bridge-offer-row').cloneNode(true);
                 offers.querySelectorAll('.oap-bridge-offer-row').forEach(r=>r.remove());
                 for(let i=0;i<count;i++) {
                     const row = template.cloneNode(true);
+                    if (i > 0) { row.querySelector('.oap-bridge-best')?.remove(); row.querySelector('.oap-bridge-offer').classList.remove('oap-bridge-offer-best'); }
                     row.setAttribute('data-oap-price', (i+1)+'.01');
+                    row.querySelector('.oap-bridge-price strong').textContent = (i+1)+',01 €';
                     if (!unknown) {
                         row.setAttribute('data-oap-shipping', (2*(count-i))+'.00');
                         row.setAttribute('data-oap-total', (2*count-i+1)+'.01');
@@ -103,16 +113,18 @@ const source = fs.readFileSync(__dirname + '/../assets/offer-shipping-toggle.js'
         for (const value of invalid) {
             await load(fixture.replace('data-oap-price="7.99"', `data-oap-price="${value}"`));
             const before=await page.locator('article').evaluate(n=>n.outerHTML);
-            await page.locator('button').click();
+            assert.equal(await page.locator('button').isDisabled(), true);
+            await page.locator('button').evaluate(b => b.click());
             assert.equal(await page.locator('article').evaluate(n=>n.outerHTML),before,'invalid data ignored: '+value);
         }
-        for(const html of [fixture.replace(' data-oap-price="7.99"',''),fixture.replace(' data-oap-total="13.99"',''),fixture.replace('data-oap-total="13.99"','data-oap-total="14.00"'),fixture.replace('class="oap-product"','class="other"'),legacy]) {
+        for(const html of [fixture.replace('class="oap-bridge-offer-list"','class="other"'),fixture.replace('aria-pressed="false"','aria-pressed="true"'),fixture.replace('<div class="oap-bridge-offer-list">','<div class="oap-bridge-offer-list"></div><div>'),fixture.replace(' data-oap-price="7.99"',''),fixture.replace(' data-oap-total="13.99"',''),fixture.replace('data-oap-total="13.99"','data-oap-total="14.00"'),fixture.replace('class="oap-product"','class="other"'),legacy]) {
             await load(html);
             const before=await page.locator('body').evaluate(n=>n.innerHTML);
-            if(await page.locator('button').count()) await page.locator('button').click();
+            if(await page.locator('button').count()) await page.locator('button').evaluate(b => b.click());
             assert.equal(await page.locator('body').evaluate(n=>n.innerHTML),before);
         }
         await load(fixture.replace('data-oap-price="7.99"','data-oap-price="90071992547409.91"'));
+        await page.locator('button').click();
         assert.equal((await state()).prices.at(-1),'90.071.992.547.409,91 €','integer cents formatting');
         assert.deepEqual(errors,[],'no browser errors');
         // Asset requests from fixture images are aborted; no request can be triggered by clicks.
