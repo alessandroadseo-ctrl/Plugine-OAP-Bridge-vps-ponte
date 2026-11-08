@@ -1,5 +1,6 @@
 <?php
 // Included by integration.php in the disposable WordPress test environment.
+require __DIR__.'/vps2-shipping.php';
 $sample = bundle('00012345678905');
 check(OAP_Product_Pages::validate($sample, $sample['gtin']) === $sample, 'VPS2 template markup and target CTA accepted byte for byte');
 foreach ([
