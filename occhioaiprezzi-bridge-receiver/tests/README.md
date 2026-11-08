@@ -41,3 +41,50 @@ Versione 1.5.0: `deletion.php` e `deletion_http.py`, incluse in `run.sh`, verifi
 cancellazione fisica, tombstone minimo, retry e pulizia recuperabile, eventi vecchi,
 owner estranei, immagini condivise/protette/native, canonical/sitemap, cache,
 GET/HEAD 410 senza contenuti e redirect, autenticazione, 405 e ripubblicazione.
+
+## Toggle «Includi spedizione»
+
+Contratto VPS2 concordato (fixture `fixtures/shipping-toggle.html`): nella sezione
+`.oap-bridge-offers`, prima delle righe, inserire
+`<button type="button" class="oap-bridge-shipping-toggle" aria-pressed="false">Includi spedizione</button>`.
+Ogni `div.oap-bridge-offer-row` espone `data-oap-price="8.99"`; per spedizioni note
+espone anche `data-oap-shipping="5.00"` e `data-oap-total="13.99"`. Per spedizione
+ignota omettere entrambi gli ultimi attributi. Valori decimali non negativi con
+punto e due cifre, in euro; il totale deve coincidere con prezzo più spedizione.
+Conservare la struttura del prezzo principale `.oap-bridge-price > p:first-child > strong`,
+merchant `.oap-bridge-merchant` e CTA `.oap-bridge-offer`. Le righe sono figlie dirette
+della sezione e arrivano ordinate per prezzo prodotto. Attributi estranei restano
+vietati; `aria-pressed` è autorizzato esclusivamente sul pulsante dedicato, con
+valore iniziale `false`. Nessuna wildcard `data-*` o `aria-*`.
+
+`shipping-toggle.php` e `shipping-toggle-http.py` sono incluse in `run.sh` e possono
+essere lanciate separatamente nel setup usa-e-getta:
+
+```sh
+docker exec oap-receiver-php wp --allow-root eval-file wp-content/plugins/occhioaiprezzi-bridge-receiver/tests/shipping-toggle.php
+python3 occhioaiprezzi-bridge-receiver/tests/shipping-toggle-http.py
+```
+
+La suite browser richiede Node 18+, il modulo `playwright` risolvibile da Node e
+Chromium (nessuna dipendenza o libreria aggiunta al sito):
+
+```sh
+OAP_CHROMIUM=/usr/bin/chromium node occhioaiprezzi-bridge-receiver/tests/shipping-toggle.cjs
+```
+
+Omettere `OAP_CHROMIUM` per usare il browser installato da Playwright. Il test
+blocca tutte le risorse esterne e non usa servizi di produzione. Copre tastiera,
+aria-pressed, assenza di spostamenti iniziali inutili, riordini ripetuti, centesimi,
+spedizione gratuita/ignota, nessun vincitore se tutti i totali sono ignoti, prezzi,
+badge e CTA, conservazione degli stessi nodi e degli attributi affiliati esatti,
+loghi/descrizioni, 1 e 100 offerte, dati invalidi/incompleti/incoerenti, vecchio HTML,
+assenza di richieste HTTP e isolamento tra prodotti e markup esterno.
+La preferenza non viene memorizzata. Una sezione incompleta resta statica.
+
+Verifica locale 2026-11-08: suite PHP (29 verifiche), suite HTTP dedicata, suite
+Chromium, regressioni esistenti `unsafe-html.php` e `http_client.py`, lint PHP e
+`git diff --check` superati su WordPress 6.8.3, PHP 8.3 e MariaDB 11.4.
+La suite completa con WooCommerce non è stata eseguita: il download del pacchetto
+WooCommerce dal setup ha restituito HTTP 504 due volte; i test dedicati sono stati
+eseguiti su un setup isolato equivalente senza WooCommerce. Il nuovo contratto è
+verificato sulla fixture concordata, senza attendere o modificare il deploy VPS2.

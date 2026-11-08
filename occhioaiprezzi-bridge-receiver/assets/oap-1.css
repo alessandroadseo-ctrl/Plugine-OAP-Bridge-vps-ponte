@@ -5,3 +5,9 @@
 .oap-bridge-offer a{display:inline-block;padding:12px 16px;background:#155ab6;border-radius:6px;color:#fff;text-decoration:none;font-weight:700;white-space:nowrap}.oap-bridge-offer a:hover{background:#103f7f;color:#fff}.oap-bridge-offer a:focus-visible{outline:3px solid #20252b;outline-offset:3px}.oap-bridge-description{margin-top:32px;overflow-wrap:anywhere}
 @media(max-width:960px){.oap-bridge-offer-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.oap-bridge-offer{grid-column:1/-1}.oap-bridge-offer a{width:100%;text-align:center}}
 @media(max-width:680px){.oap-product{padding:16px 12px}.oap-bridge-product-info{grid-template-columns:minmax(0,1fr);gap:24px}.oap-bridge-image{position:static}.oap-bridge-image img{max-height:280px}.oap-bridge-offer-row{gap:12px}.oap-bridge-price{text-align:right}}
+/* Only the Bridge shipping control and its state. */
+.oap-product .oap-bridge-offers>.oap-bridge-shipping-toggle{padding:10px 14px;border:2px solid #155ab6;border-radius:6px;background:#fff;color:#155ab6;font:inherit;cursor:pointer}
+.oap-product .oap-bridge-offers>.oap-bridge-shipping-toggle[aria-pressed="true"]{background:#155ab6;color:#fff}
+.oap-product .oap-bridge-offers>.oap-bridge-shipping-toggle:focus-visible{outline:3px solid #20252b;outline-offset:3px}
+.oap-product .oap-bridge-offers .oap-bridge-best[hidden]{display:none}
+.oap-product .oap-bridge-offers .oap-bridge-offer-best a{box-shadow:0 0 0 2px #164b3e}
