@@ -1,5 +1,20 @@
 # Test isolati
 
+Regressione HTML VPS2 senza database (PHP 8.3 e sorgenti WordPress 6.8.3):
+
+```sh
+php occhioaiprezzi-bridge-receiver/tests/validate-html.php /percorso/wordpress
+```
+
+Usa KSES e il parser HTML reali di WordPress, senza caricare `wp-config.php`,
+aprire connessioni al database o avviare REST. La fixture `vps2-shipping.html`
+estende quella VPS2 esistente con il markup segnalato: pulsante con `type`,
+`aria-pressed`, `disabled="disabled"` e righe `div` con i tre `data-oap-*`,
+anche con spedizione/totale vuoti. Verifica identità dell'intero payload,
+compatibilità precedente e rifiuto di script, eventi, attributi estranei,
+URL pericolosi e normalizzazioni KSES. La stessa regressione è inclusa nella
+suite di integrazione.
+
 Solo ambiente usa-e-getta: WordPress 6.8.3, WooCommerce 10.3.5, MariaDB 11.4, PHP 8.3, host receiver.test, DB oap_test. Il test crea prodotti Woo esclusivamente per dimostrare che non influenzano le decisioni ricevute. Non usare contro il sito o la VPS reali.
 
 Richiesti Docker, git, curl e Python 3 (solo libreria standard). Da root repository:

@@ -29,6 +29,9 @@ final class OAP_Product_Pages {
         foreach (['article','section','div','span','p','h1','h2','h3','strong','em','ul','ol','li','br','table','caption','thead','tbody','tr','th','td'] as $tag) {
             $allowed[$tag] = ['class'=>true];
         }
+        // VPS2 shipping control and offer values: explicit attributes, no data-* wildcard.
+        $allowed['button'] = ['class'=>true,'type'=>true,'aria-pressed'=>true,'disabled'=>true];
+        $allowed['div'] += ['data-oap-price'=>true,'data-oap-shipping'=>true,'data-oap-total'=>true];
         $allowed['a'] = ['href'=>true,'rel'=>true,'title'=>true,'target'=>true];
         $allowed['img'] = ['src'=>true,'alt'=>true,'loading'=>true,'width'=>true,'height'=>true];
         // Validate without rewriting the VPS document. Reject unsupported markup.
