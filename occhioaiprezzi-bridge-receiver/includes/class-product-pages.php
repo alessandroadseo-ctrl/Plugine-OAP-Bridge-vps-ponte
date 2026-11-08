@@ -18,6 +18,18 @@ final class OAP_Product_Pages {
         if (str_contains($p['html'], '<?')) { throw new OAP_Failure('oap_unsafe_html', 400, ['rule'=>'php_open_tag']); }
         $processor = new WP_HTML_Tag_Processor($p['html']);
         while ($processor->next_tag()) {
+            // These attributes belong only to Bridge offer rows, never a generic data-* allowlist.
+            foreach (['data-oap-price', 'data-oap-shipping', 'data-oap-total'] as $attr) {
+                $value = $processor->get_attribute($attr);
+                if ($value !== null && ($processor->get_tag() !== 'DIV' || !$processor->has_class('oap-bridge-offer-row')
+                    || !is_string($value) || !preg_match('/\A[0-9]+\.[0-9]{2}\z/', $value))) {
+                    throw new OAP_Failure('oap_unsafe_html', 400, ['rule'=>'invalid_offer_data']);
+                }
+            }
+            if ($processor->get_tag() === 'BUTTON' && ($processor->get_attribute('class') !== 'oap-bridge-shipping-toggle'
+                || $processor->get_attribute('type') !== 'button' || $processor->get_attribute('aria-pressed') !== 'false')) {
+                throw new OAP_Failure('oap_unsafe_html', 400, ['rule'=>'invalid_shipping_toggle']);
+            }
             if (in_array($processor->get_tag(), ['SCRIPT','STYLE','IFRAME','OBJECT','EMBED','SVG','MATH','FORM','INPUT','LINK','META','BASE'], true)
                 || $processor->get_attribute_names_with_prefix('on')) { throw new OAP_Failure('oap_unsafe_html', 400, ['rule'=>'forbidden_element_or_event_handler']); }
             foreach (['href', 'src'] as $attr) {
@@ -31,6 +43,8 @@ final class OAP_Product_Pages {
         }
         $allowed['a'] = ['href'=>true,'rel'=>true,'title'=>true,'target'=>true];
         $allowed['img'] = ['src'=>true,'alt'=>true,'loading'=>true,'width'=>true,'height'=>true];
+        $allowed['div'] += ['data-oap-price'=>true,'data-oap-shipping'=>true,'data-oap-total'=>true];
+        $allowed['button'] = ['class'=>true,'type'=>true,'aria-pressed'=>true];
         // Validate without rewriting the VPS document. Reject unsupported markup.
         $clean = wp_kses($p['html'], $allowed, ['http','https']);
         if ($clean !== $p['html']) {

@@ -30,7 +30,8 @@ final class OAP_SEO {
 
     public static function bridge_assets(): void {
         if (self::$bridge_view) {
-            wp_enqueue_style('oap-bridge-products', plugins_url('../assets/oap-1.css', __FILE__), [], '1.3.0');
+            wp_enqueue_style('oap-bridge-products', plugins_url('../assets/oap-1.css', __FILE__), [], (string)filemtime(__DIR__ . '/../assets/oap-1.css'));
+            wp_enqueue_script('oap-bridge-shipping-toggle', plugins_url('../assets/offer-shipping-toggle.js', __FILE__), [], (string)filemtime(__DIR__ . '/../assets/offer-shipping-toggle.js'), true);
         }
     }
 
