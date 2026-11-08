@@ -12,6 +12,7 @@ if (OAP_Product_Pages::validate($shipping, $shipping['gtin']) !== $shipping) {
 }
 foreach ([
     file_get_contents(__DIR__.'/fixtures/vps2-product.html'),
+    file_get_contents(__DIR__.'/fixtures/shipping-toggle.html'),
     '<button class="oap-bridge-shipping-toggle" type="button" aria-pressed="false">Includi spedizione</button>',
 ] as $html) {
     $valid = $shipping; $valid['html'] = $html;
@@ -25,6 +26,8 @@ foreach ([
     '<button type="button" data-arbitrary="x">Spedizione</button>',
     '<button type="button" formaction="https://example.test/">Spedizione</button>',
     '<div class="oap-bridge-offer-row" data-oap-price="19.90" data-oap-other="x"></div>',
+    '<div disabled="disabled"></div>',
+    '<div class="oap-bridge-offer-row" data-oap-shipping="" data-oap-total=""></div>',
     '<p data-oap-price="19.90">x</p>',
     '<div aria-pressed="false"></div>',
     '<button type="button">&#39;</button>',

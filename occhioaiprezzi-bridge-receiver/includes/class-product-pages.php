@@ -46,8 +46,6 @@ final class OAP_Product_Pages {
         $allowed['div'] += ['data-oap-price'=>true,'data-oap-shipping'=>true,'data-oap-total'=>true];
         $allowed['a'] = ['href'=>true,'rel'=>true,'title'=>true,'target'=>true];
         $allowed['img'] = ['src'=>true,'alt'=>true,'loading'=>true,'width'=>true,'height'=>true];
-        $allowed['div'] += ['data-oap-price'=>true,'data-oap-shipping'=>true,'data-oap-total'=>true];
-        $allowed['button'] = ['class'=>true,'type'=>true,'aria-pressed'=>true];
         // Validate without rewriting the VPS document. Reject unsupported markup.
         $clean = wp_kses($p['html'], $allowed, ['http','https']);
         if ($clean !== $p['html']) {
